@@ -1,5 +1,5 @@
 (defproject dont-give-up "0.1.0-SNAPSHOT"
-  :description "Restarts for Clojure."
+  :description "Common Lisp style restarts in Clojure"
   :url "https://github.com/czan/dont-give-up"
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}
