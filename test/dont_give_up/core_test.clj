@@ -2,6 +2,22 @@
   (:require [clojure.test :refer :all]
             [dont-give-up.core :refer :all]))
 
+(deftest handlers-function-like-catch
+  (is (= (try
+           (/ 1 0)
+           (catch ArithmeticException ex
+             :value))
+         (with-handlers [(ArithmeticException [ex]
+                           :value)]
+           (/ 1 0))))
+  (is (= (try
+           (/ 1 0)
+           (catch Exception ex
+             :value))
+         (with-handlers [(Exception [ex]
+                           :value)]
+           (/ 1 0)))))
+
 (deftest restarts-from-exceptions-work
   (is (= 10
          (with-handlers [(Exception [ex]
