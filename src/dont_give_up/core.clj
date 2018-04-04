@@ -189,20 +189,3 @@
                                ~ex-sym ~args-sym)))
                     handlers)
           :else (apply signal ~ex-sym ~args-sym))))))
-
-
-(defn rdiv [num den]
-  (with-restarts [(:use-value [value]
-                    :describe (fn [ex]
-                                (str "Use a given value in place of " num "/" den))
-                    :arguments #'read-unevaluated-value
-                    value)
-                  (:use-denom [denom]
-                    :describe (fn [ex]
-                                (str "Use a given value in place of " den " (the denominator)"))
-                    :arguments #'read-unevaluated-value
-                    (rdiv num denom))]
-    (/ num den)))
-
-(defn -main [& args]
-  (println (rdiv 1 0)))
