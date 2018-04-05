@@ -18,6 +18,17 @@
                            :value)]
            (/ 1 0)))))
 
+(deftest handlers-work-even-above-try-catch
+  (is (= 20
+         (with-handlers [(Exception [ex]
+                           (use-restart :use-value 10))]
+           (try
+             (+ (with-restarts [(:use-value [value]
+                                  value)]
+                  (throw (Exception.)))
+                10)
+             (catch Exception ex))))))
+
 (deftest restarts-from-exceptions-work
   (is (= 10
          (with-handlers [(Exception [ex]
