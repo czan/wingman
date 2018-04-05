@@ -46,8 +46,13 @@
   (println)
   (println "These are the currently-available restarts:")
   (doseq [[i restart] (map-indexed vector *restarts*)]
-    (println " " (inc i) (:name restart) (apply (:describe restart) ex args)))
-  (println " " "q" "Abort")
+    (println (format "  [%s] %s%s"
+                     (inc i)
+                     (:name restart)
+                     (if-let [desc (not-empty (apply (:describe restart) ex args))]
+                       (str " - " desc)
+                       ""))))
+  (println "  [q] Abort - Rethrow the exception.")
   (loop []
     (print "Enter a restart to use: ")
     (flush)
