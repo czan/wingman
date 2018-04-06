@@ -8,7 +8,7 @@ To run interactively, load `dont-give-up.el`, and install the `dont-give-up.midd
 
 ## Usage (interactive)
 
-Add `:repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]}q to your `project.clj`.
+Add `:repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]}` to your `project.clj`.
 
 Download `dont-give-up.el` from this repository and run `(load "/path/to/dont-live-up.el")`.
 
