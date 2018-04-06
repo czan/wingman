@@ -150,3 +150,11 @@
                  (throw (RuntimeException.))))
              (catch Exception ex
                (.getClass ex)))))))
+
+(deftest restarts-should-go-away-during-handler
+  (is (= 0
+         (with-handlers [(Exception [ex]
+                           (use-restart :try-1))]
+           (with-restarts [(:try-1 []
+                             (count *restarts*))]
+             (throw (RuntimeException.)))))))
