@@ -1,6 +1,18 @@
 (ns dont-give-up.core)
 
+(declare ^:dynamic *default-handler*)
+
+(def ^:dynamic *handlers* [#'*default-handler*])
+(def ^:dynamic *restarts* [])
+
 (defrecord Restart [name describe make-arguments behaviour])
+
+(defn signal [ex & args]
+  (if (seq *handlers*)
+    (let [[handler & others] *handlers*]
+      (binding [*handlers* others]
+        (apply handler ex args)))
+    (throw ex)))
 
 (defn use-restart [name & args]
   (let [restart (->> *restarts*
@@ -28,18 +40,6 @@
 (defn our-throwable? [t]
   (and (instance? clojure.lang.ExceptionInfo t)
        (::type (ex-data t))))
-
-(declare ^:dynamic *default-handler*)
-
-(def ^:dynamic *handlers* [#'*default-handler*])
-(def ^:dynamic *restarts* [])
-
-(defn signal [ex & args]
-  (if (seq *handlers*)
-    (let [[handler & others] *handlers*]
-      (binding [*handlers* others]
-        (apply handler ex args)))
-    (throw ex)))
 
 (defn either-throw-or-signal [t]
   (if (our-throwable? t)
