@@ -1,8 +1,6 @@
 (ns dont-give-up.core)
 
-(declare ^:dynamic *default-handler*)
-
-(def ^:dynamic *handlers* [#'*default-handler*])
+(def ^:dynamic *handlers* [])
 (def ^:dynamic *restarts* [])
 
 (defrecord Restart [name describe make-arguments behaviour])
@@ -47,35 +45,6 @@
   (if (our-throwable? t)
     (throw t)
     (signal t)))
-
-(defn ^:dynamic *default-handler* [ex & args]
-  (println "Error:" (.getMessage ex))
-  (println)
-  (println "These are the currently-available restarts:")
-  (doseq [[i restart] (map-indexed vector *restarts*)]
-    (println (format "  [%s] %s%s"
-                     (inc i)
-                     (:name restart)
-                     (if-let [desc (not-empty (apply (:describe restart) ex args))]
-                       (str " - " desc)
-                       ""))))
-  (println "  [q] Abort - Rethrow the exception.")
-  (loop []
-    (print "Enter a restart to use: ")
-    (flush)
-    (let [result (read-string (read-line))]
-      (cond
-        (= 'q result)
-        (throw ex)
-        
-        (<= 1 result (count *restarts*))
-        (let [restart (get *restarts* (dec result))]
-          (apply use-restart restart
-                 (apply (:make-arguments restart) ex args)))
-        
-        :else
-        (do (println "Not a valid restart.")
-            (recur))))))
 
 (defn with-handler-fn [thunk handler]
   (let [id (gensym "handle-id")]

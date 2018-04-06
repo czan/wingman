@@ -1,5 +1,5 @@
 (ns dont-give-up.middleware
-  (:require [dont-give-up.core :refer (with-handlers with-restarts use-restart signal *default-handler* *restarts*)]
+  (:require [dont-give-up.core :refer (with-handlers with-restarts use-restart *restarts*)]
             [clojure.tools.nrepl.transport :as t]
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
             [clojure.tools.nrepl.middleware.session :refer (session)]
@@ -38,14 +38,13 @@
     nil))
 
 (defn handled-eval [form]
-  (binding [*default-handler* (fn [x & rest] (throw x))]
-    (with-handlers [(Throwable [ex & args]
-                               (let [restart (prompt-for-restarts ex args *restarts*)]
-                                 (if restart
-                                   (apply use-restart restart
-                                          (apply (:make-arguments restart) ex args))
-                                   (throw ex))))]
-      (clojure.core/eval form))))
+  (with-handlers [(Throwable [ex & args]
+                    (let [restart (prompt-for-restarts ex args *restarts*)]
+                      (if restart
+                        (apply use-restart restart
+                               (apply (:make-arguments restart) ex args))
+                        (throw ex))))]
+    (clojure.core/eval form)))
 
 (defn run-with-restart-stuff [h {:keys [op code eval] :as msg}]
   (h (if (and (= op "eval")
