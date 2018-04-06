@@ -127,7 +127,9 @@
 (defn read-unevaluated-value [ex & args]
   (print "Enter a value to be used (unevaluated): ")
   (flush)
-  (try [(read-string (read-line))]
+  (try (let [x [(read-string (read-line))]]
+         (println)
+         x)
        (catch Throwable t
          (println)
          (print "Couldn't read a value. Aborting.")
@@ -137,7 +139,9 @@
 (defn read-and-eval-value [ex & args]
   (print "Enter a value to be used (evaluated): ")
   (flush)
-  (try [(eval (read-string (read-line)))]
+  (try (let [x [(eval (read-string (read-line)))]]
+         (println)
+         x)
        (catch Throwable t
          (println)
          (print "Couldn't read a value. Aborting.")
