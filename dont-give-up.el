@@ -68,7 +68,7 @@
                     (insert " - ")
                     (insert (cadr restart)))
                   (insert "\n")
-                  (incf index))
+                  (setq index (1+ index)))
                 restarts))
       (insert "  [q] abort - Rethrow the exception.")
       (insert "\n\n")
