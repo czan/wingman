@@ -15,14 +15,14 @@
            (/ 1 0)))))
 
 (deftest handlers-should-work-even-above-try-catch
-  (is (= 20
+  (is (= 11
          (with-handlers [(Exception [ex]
                            (use-restart :use-value 10))]
            (try
              (+ (with-restarts [(:use-value [value]
                                   value)]
                   (throw (Exception.)))
-                10)
+                1)
              (catch Exception ex))))))
 
 (deftest restarts-from-exceptions-should-work
@@ -40,15 +40,15 @@
                (throw (RuntimeException.)))))))
   (is (= 10
          (with-handlers [(Exception [ex] (use-restart :use-value 10))]
-           (with-handlers [(Exception [ex] (signal ex))]
+           (with-handlers [(ArithmeticException [ex] (signal ex))]
              (with-restarts [(:use-value [value] value)]
-               (throw (RuntimeException.))))))))
+               (throw (ArithmeticException.))))))))
 
 (deftest signal-should-pass-more-arguments
   (is (= 34
          (with-handlers [(Exception [ex & rest]
                            (apply + rest))]
-           (signal (RuntimeException.) 10 20 4)))))
+           (signal (ArithmeticException.) 10 20 4)))))
 
 (deftest handlers-returning-values-should-return-at-the-right-place
   (is (= 2
@@ -79,7 +79,8 @@
     (is (= ex
            (try
              (with-restarts [(:use-value [value] value)]
-               (throw ex))
+               (with-restarts [(:use-value [value] value)]
+                 (throw ex)))
              (catch Exception e e))))))
 
 (deftest handlers-throwing-exceptions-should-be-catchable
