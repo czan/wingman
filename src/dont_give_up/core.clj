@@ -15,9 +15,11 @@
     (throw ex)))
 
 (defn use-restart [name & args]
-  (let [restart (->> *restarts*
-                     (filter #(= (:name %) name))
-                     first)]
+  (let [restart (if (instance? Restart name)
+                  name
+                  (->> *restarts*
+                       (filter #(= (:name %) name))
+                       first))]
     (if restart
       (throw (ex-info "Use this restart"
                       {::type :use-restart
