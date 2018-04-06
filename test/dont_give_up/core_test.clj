@@ -44,6 +44,13 @@
              (with-restarts [(:use-value [value] value)]
                (throw (ArithmeticException.))))))))
 
+(deftest restarts-should-restart-from-the-right-point
+  (is (= 0
+         (with-handlers [(Exception [ex] (use-restart :use-zero))]
+           (with-restarts [(:use-zero [] 0)]
+             (inc (with-restarts [(:use-one [] 1)]
+                    (throw (Exception.)))))))))
+
 (deftest signal-should-pass-more-arguments
   (is (= 34
          (with-handlers [(Exception [ex & rest]

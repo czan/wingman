@@ -83,7 +83,8 @@
           (either-throw-or-signal t))))
     (catch clojure.lang.ExceptionInfo e
       (let [data (ex-data e)]
-        (if (= (::type data) :use-restart)
+        (if (and (= (::type data) :use-restart)
+                 (some #(= % (::restart data)) restarts))
           (apply (:behaviour (::restart data)) (::args data))
           (either-throw-or-signal e))))))
 
