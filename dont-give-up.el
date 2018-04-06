@@ -1,3 +1,6 @@
+(defvar-local dgu-restart-request-id nil)
+(defvar-local dgu-restarts nil)
+
 (defun nrepl-send-response-to (id response connection &optional tooling)
   (with-current-buffer connection
     (when-let ((session (if tooling nrepl-tooling-session nrepl-session)))
@@ -20,9 +23,10 @@
   (interactive)
   (let ((choice (or index
                     (ignore-errors (string-to-number (this-command-keys))))))
-    (dgu-send-restart-choice dgu-restart-request-id
-                             (1- choice)
-                             (cider-current-connection))))
+    (when (<= 1 choice (length dgu-restarts))
+      (dgu-send-restart-choice dgu-restart-request-id
+                               (1- choice)
+                               (cider-current-connection)))))
 
 (defun dgu-choose-abort ()
   (interactive)
@@ -49,8 +53,6 @@
                           connection)
   (cider-popup-buffer-quit :kill))
 
-(defvar-local dgu-restart-request-id nil)
-
 (defun dgu-prompt-user (id error detail restarts)
   (with-current-buffer (cider-popup-buffer "*dgu-prompt*" :select)
     (dgu-restart-prompt-mode)
@@ -76,6 +78,7 @@
       (insert detail)
       (insert "\n")
       (goto-char (point-min))
-      (setq-local dgu-restart-request-id id))))
+      (setq-local dgu-restart-request-id id)
+      (setq-local dgu-restarts restarts))))
 
 (add-hook 'nrepl-response-handler-functions #'dgu-handle-nrepl-response)
