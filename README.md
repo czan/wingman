@@ -2,13 +2,15 @@
 
 Oh no, something's gone wrong! Don't give up! Restart your computation using Common Lisp-style restarts, instead!
 
+[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.czan/dont-give-up.svg)](https://clojars.org/org.clojars.czan/dont-give-up)
+
 Restarts can be used in code, as shown below, or they can be used interactively. When an exception is thrown, the user is asked which restart to use (if there are any available). This has been implemented as nrepl middleware, with an associated cider extension.
 
 To run interactively, load `dont-give-up.el`, and install the `dont-give-up.middleware/handle-restarts` middleware.
 
 ## Usage (interactive)
 
-Add `:repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]}` to your `project.clj`.
+Add `[org.clojars.czan/dont-give-up "0.1.0-SNAPSHOT"]` to your dependencies and `:repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]}` to your `project.clj`.
 
 Download `dont-give-up.el` from this repository and run `(load "/path/to/dont-live-up.el")`.
 
