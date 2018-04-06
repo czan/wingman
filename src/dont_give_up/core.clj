@@ -99,30 +99,30 @@
               (either-throw-or-signal e))))))))
 
 (defn with-restarts-fn [thunk restarts]
-  (binding [*restarts* (into (vec restarts) *restarts*)]
-    (try
+  (try
+    (binding [*restarts* (into (vec restarts) *restarts*)]
       (try
         (thunk)
         (catch Throwable t
-          (either-throw-or-signal t)))
-      (catch clojure.lang.ExceptionInfo e
-        (let [data (ex-data e)]
-          (cond
-            (not= (::type data) :use-restart)
-            (either-throw-or-signal e)
+          (either-throw-or-signal t))))
+    (catch clojure.lang.ExceptionInfo e
+      (let [data (ex-data e)]
+        (cond
+          (not= (::type data) :use-restart)
+          (either-throw-or-signal e)
 
-            (instance? Restart (::name data))
-            (let [restart (::name data)]
-              (apply (:behaviour restart) (::args data)))
+          (instance? Restart (::name data))
+          (let [restart (::name data)]
+            (apply (:behaviour restart) (::args data)))
 
-            :else
-            (let [restart-name (::name data)
-                  restart (->> *restarts*
-                               (filter #(= (:name %) restart-name))
-                               first)]
-              (if restart
-                (apply (:behaviour restart) (::args data))
-                (signal (IllegalArgumentException. (str "No restart registered for " restart-name)))))))))))
+          :else
+          (let [restart-name (::name data)
+                restart (->> restarts
+                             (filter #(= (:name %) restart-name))
+                             first)]
+            (if restart
+              (apply (:behaviour restart) (::args data))
+              (signal (IllegalArgumentException. (str "No restart registered for " restart-name))))))))))
 
 (defn read-unevaluated-value [ex & args]
   (print "Enter a value to be used (unevaluated): ")
@@ -132,9 +132,9 @@
          x)
        (catch Throwable t
          (println)
-         (print "Couldn't read a value. Aborting.")
+         (println "Couldn't read a value. Aborting.")
          (flush)
-         (signal t))))
+         (signal ex))))
 
 (defn read-and-eval-value [ex & args]
   (print "Enter a value to be used (evaluated): ")
@@ -144,9 +144,8 @@
          x)
        (catch Throwable t
          (println)
-         (print "Couldn't read a value. Aborting.")
-         (flush)
-         (signal t))))
+         (println "Couldn't read a value. Aborting.")
+         (signal ex))))
 
 (defmacro with-restarts
   {:style/indent [1 [[:defn]] :form]}
