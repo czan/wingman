@@ -72,31 +72,31 @@
 
 (defn with-handler-fn [thunk handler]
   (let [id (gensym "handle-id")]
-    (binding [*handlers* (cons (fn [ex & args]
-                                 (try (handled-value id (apply handler ex args))
-                                      (catch Throwable t
-                                        (if (our-throwable? t)
-                                          (throw t)
-                                          (thrown-value id t)))))
-                               *handlers*)]
-      (try
+    (try
+      (binding [*handlers* (cons (fn [ex & args]
+                                   (try (handled-value id (apply handler ex args))
+                                        (catch Throwable t
+                                          (if (our-throwable? t)
+                                            (throw t)
+                                            (thrown-value id t)))))
+                                 *handlers*)]
         (try
           (thunk)
           (catch Throwable t
-            (either-throw-or-signal t)))
-        (catch clojure.lang.ExceptionInfo e
-          (let [data (ex-data e)]
-            (cond
-              (and (= (::type data) :handled-value)
-                   (= (::id data) id))
-              (::value data)
+            (either-throw-or-signal t))))
+      (catch clojure.lang.ExceptionInfo e
+        (let [data (ex-data e)]
+          (cond
+            (and (= (::type data) :handled-value)
+                 (= (::id data) id))
+            (::value data)
 
-              (and (= (::type data) :thrown-value)
-                   (= (::id data) id))
-              (throw (::value data))
+            (and (= (::type data) :thrown-value)
+                 (= (::id data) id))
+            (throw (::value data))
 
-              :else
-              (either-throw-or-signal e))))))))
+            :else
+            (either-throw-or-signal e)))))))
 
 (defn with-restarts-fn [thunk restarts]
   (try
