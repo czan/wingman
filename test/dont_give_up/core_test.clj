@@ -2,23 +2,19 @@
   (:require [clojure.test :refer :all]
             [dont-give-up.core :refer :all]))
 
-(deftest handlers-function-like-catch
-  (is (= (try
-           (/ 1 0)
-           (catch ArithmeticException ex
-             :value))
+(deftest handlers-should-use-the-first-matching-clause
+  (is (= :value
          (with-handlers [(ArithmeticException [ex]
-                           :value)]
+                           :value)
+                         (Exception [ex])]
            (/ 1 0))))
-  (is (= (try
-           (/ 1 0)
-           (catch Exception ex
-             :value))
-         (with-handlers [(Exception [ex]
+  (is (= nil
+         (with-handlers [(Exception [ex])
+                         (ArithmeticException [ex]
                            :value)]
            (/ 1 0)))))
 
-(deftest handlers-work-even-above-try-catch
+(deftest handlers-should-work-even-above-try-catch
   (is (= 20
          (with-handlers [(Exception [ex]
                            (use-restart :use-value 10))]
@@ -29,26 +25,26 @@
                 10)
              (catch Exception ex))))))
 
-(deftest restarts-from-exceptions-work
+(deftest restarts-from-exceptions-should-work
   (is (= 10
          (with-handlers [(Exception [ex]
                            (use-restart :use-value 10))]
            (with-restarts [(:use-value [value] value)]
              (throw (RuntimeException.)))))))
 
-(deftest restarts-bubble-up-if-unhandled
+(deftest restarts-should-bubble-up-if-unhandled
   (is (= 10
          (with-handlers [(Exception [ex] (use-restart :use-value 10))]
-           (with-handlers []
+           (with-handlers [(ArithmeticException [ex])]
              (with-restarts [(:use-value [value] value)]
                (throw (RuntimeException.)))))))
   (is (= 10
          (with-handlers [(Exception [ex] (use-restart :use-value 10))]
-           (with-handlers [(ArithmeticException [ex] (throw ex))]
+           (with-handlers [(Exception [ex] (signal ex))]
              (with-restarts [(:use-value [value] value)]
                (throw (RuntimeException.))))))))
 
-(deftest signal-can-pass-more-arguments
+(deftest signal-should-pass-more-arguments
   (is (= 34
          (with-handlers [(Exception [ex & rest]
                            (apply + rest))]
@@ -66,7 +62,7 @@
     (try (with-handlers [(RuntimeException [ex]
                            (swap! num inc)
                            (throw ex))]
-           (with-restarts []
+           (with-restarts [(:use-value [value] value)]
              (throw (RuntimeException.))))
          (catch Throwable t))
     (is (= 1 @num)))
@@ -74,8 +70,8 @@
     (try (with-handlers [(RuntimeException [ex]
                            (swap! num inc)
                            (throw ex))]
-           (with-restarts []
-             (with-restarts []
+           (with-restarts [(:use-value [value] value)]
+             (with-restarts [(:use-value [value] value)]
                (throw (RuntimeException.)))))
          (catch Throwable t))
     (is (= 1 @num)))
@@ -83,8 +79,8 @@
     (try (with-handlers [(RuntimeException [ex]
                            (swap! num inc)
                            (throw ex))]
-           (with-handlers []
-             (with-handlers []
+           (with-handlers [(ArithmeticException [ex])]
+             (with-handlers [(IllegalArgumentException [ex])]
                (throw (RuntimeException.)))))
          (catch Throwable t))
     (is (= 1 @num))))
@@ -92,7 +88,7 @@
 (deftest handlers-returning-values-should-return-at-the-right-place
   (is (= 2
          (with-handlers [(RuntimeException [& args] 2)]
-           (+ 1 (with-handlers []
+           (+ 1 (with-handlers [(ArithmeticException [ex])]
                   (throw (RuntimeException.))))))))
 
 (deftest handlers-should-not-modify-exceptions-when-not-handling
@@ -143,14 +139,14 @@
     (is (= Exception
            (try
              (with-handlers [(RuntimeException [ex] (throw (Exception.)))]
-               (with-restarts []
+               (with-restarts [(:use-value [value] value)]
                  (throw (RuntimeException.))))
              (catch Exception ex
                (.getClass ex)))))
     (is (= Exception
            (try
              (with-handlers [(RuntimeException [ex] (throw (Exception.)))]
-               (with-restarts []
+               (with-restarts [(:use-value [value] value)]
                  (throw (RuntimeException.))))
              (catch Exception ex
                (.getClass ex)))))))
