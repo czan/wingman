@@ -44,6 +44,13 @@
              (with-restarts [(:use-value [value] value)]
                (throw (ArithmeticException.))))))))
 
+(deftest restarts-should-use-the-most-specific-named-restart
+  (is (= 10
+         (with-handlers [(Exception [ex] (use-restart :use-default))]
+           (with-restarts [(:use-default [] 13)]
+             (with-restarts [(:use-default [] 10)]
+               (throw (RuntimeException.))))))))
+
 (deftest restarts-should-restart-from-the-right-point
   (is (= 0
          (with-handlers [(Exception [ex] (use-restart :use-zero))]
