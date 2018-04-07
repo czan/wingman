@@ -51,10 +51,42 @@
   (with-interactive-handler
     (letfn [(run []
               (with-restarts [(:retry []
-                                :describe "Retry the top-level evaluation"
+                                :describe "Retry the REPL evaluation"
                                 (run))]
                 (clojure.core/eval form)))]
       (run))))
+
+(defn handled-future-call [future-call]
+  (fn [f]
+    (future-call (fn []
+                   (binding [*restarts* []]
+                     (with-interactive-handler
+                       (letfn [(run []
+                                 (with-restarts [(:retry []
+                                                   :describe "Retry the future evaluation from the start"
+                                                   (run))]
+                                   (f)))]
+                         (run))))))))
+
+(alter-var-root #'clojure.core/future-call handled-future-call)
+
+(defn handled-send-via [send-via]
+  (fn [executor agent f & args]
+    (binding [*restarts* []]
+      (apply send-via
+             executor
+             agent
+             (fn [& args]
+               (with-interactive-handler
+                 (letfn [(run []
+                           (with-restarts [(:retry []
+                                             :describe "Retry the agent evaluation from the start"
+                                             (run))]
+                             (apply f args)))]
+                   (run))))
+             args))))
+
+(alter-var-root #'clojure.core/send-via handled-send-via)
 
 (defmacro handled-future [& body]
   `(future
