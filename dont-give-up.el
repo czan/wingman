@@ -1,3 +1,5 @@
+;; dont-give-up.el --- Handle and restart exceptions in Clojure. -*- lexical-binding: t; -*-
+
 (defvar-local dgu-restart-request-id nil)
 (defvar-local dgu-restarts nil)
 
