@@ -56,7 +56,7 @@
   (cider-popup-buffer-quit :kill))
 
 (defun dgu-prompt-user (id error detail restarts)
-  (with-current-buffer (cider-popup-buffer "*dgu-prompt*" :select)
+  (with-current-buffer (cider-popup-buffer (generate-new-buffer-name "*dgu-prompt*") :select)
     (dgu-restart-prompt-mode)
     (let ((inhibit-read-only t))
       (delete-region (point-min) (point-max))
