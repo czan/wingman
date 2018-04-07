@@ -56,6 +56,17 @@
                 (clojure.core/eval form)))]
       (run))))
 
+(defmacro handled-future [& body]
+  `(future
+     (binding [*restarts* []]
+       (with-interactive-handler
+         (letfn [(run# []
+                   (with-restarts [(:retry []
+                                     :describe "Retry the future evaluation from the start"
+                                     (run#))]
+                     ~@body))]
+           (run#))))))
+
 (defn run-with-restart-stuff [h {:keys [op code eval] :as msg}]
   (h (if (and (= op "eval")
               (nil? eval))
