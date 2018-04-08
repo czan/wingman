@@ -55,6 +55,49 @@
                           connection)
   (cider-popup-buffer-quit :kill))
 
+(defun dgu-insert-bounds (&rest args)
+  (let ((start (point)))
+    (apply #'insert args)
+    (cons start (point))))
+
+(defun dgu-insert-restart-prompt (index name description)
+  (insert "  ")
+  (let ((clickable-start (point))
+        prompt-bounds
+        name-bounds
+        description-bounds)
+    (setq prompt-bounds (dgu-insert-bounds
+                         "["
+                         (if index
+                             (number-to-string index)
+                           "q")
+                         "]"))
+    (insert " ")
+    (setq name-bounds (dgu-insert-bounds name))
+    (insert " ")
+    (unless (equal description "")
+      (insert " - ")
+      (setq description-bounds (dgu-insert-bounds description)))
+    (let ((map (make-sparse-keymap)))
+      (if index
+          (progn
+            (define-key map [mouse-2] (lambda ()
+                                        (interactive)
+                                        (dgu-choose-restart index)))
+            (define-key map (kbd "<RET>") (lambda ()
+                                            (interactive)
+                                            (dgu-choose-restart index))))
+        (define-key map [mouse-2] #'dgu-choose-abort)
+        (define-key map (kbd "<RET>") #'dgu-choose-abort))
+      (add-text-properties clickable-start (point)
+                           `(keymap ,map
+                             follow-link t
+                             mouse-face highlight
+                             help-echo "mouse-2: use this restart")))
+    (put-text-property (car prompt-bounds) (cdr prompt-bounds)
+                       'face 'cider-debug-prompt-face)
+    (insert "\n")))
+
 (defun dgu-prompt-user (id error detail restarts)
   (with-current-buffer (cider-popup-buffer (generate-new-buffer-name "*dgu-prompt*") :select)
     (dgu-restart-prompt-mode)
@@ -66,16 +109,11 @@
       (insert "The following restarts are available:\n")
       (let ((index 1))
         (mapcar (lambda (restart)
-                  (insert "  [" (number-to-string index) "] ")
-                  (insert (car restart))
-                  (unless (equal (cadr restart) "")
-                    (insert " - ")
-                    (insert (cadr restart)))
-                  (insert "\n")
+                  (dgu-insert-restart-prompt index (car restart) (cadr restart))
                   (setq index (1+ index)))
                 restarts))
-      (insert "  [q] abort - Rethrow the exception.")
-      (insert "\n\n")
+      (dgu-insert-restart-prompt nil "abort" "Rethrow the exception.")
+      (insert "\n")
       (insert "----------------------\n")
       (insert detail)
       (insert "\n")
