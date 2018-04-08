@@ -1,5 +1,5 @@
 (ns dont-give-up.middleware
-  (:require [dont-give-up.core :refer (with-handlers with-restarts use-restart *restarts*)]
+  (:require [dont-give-up.core :as dgu :refer (with-handlers with-restarts)]
             [clojure.tools.nrepl.transport :as t]
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
             [clojure.tools.nrepl.middleware.session :refer (session)]
@@ -39,65 +39,66 @@
 
 (defmacro with-interactive-handler [& body]
   `(with-handlers [(Throwable [ex# & args#]
-                     (let [restart# (prompt-for-restarts ex# args# *restarts*)]
+                     (let [restart# (prompt-for-restarts ex# args# dgu/*restarts*)]
                        (if restart#
-                         (apply use-restart restart#
+                         (apply dgu/use-restart restart#
                                 (apply (:make-arguments restart#)
                                        ex# args#))
                          (throw ex#))))]
      ~@body))
 
+(defmacro with-retry-restart [msg & body]
+  {:style/indent [1]}
+  `(letfn [(run# []
+             (with-restarts [(:retry []
+                               :describe ~msg
+                               (run#))]
+               ~@body))]
+     (run#)))
+
 (defn handled-eval [form]
-  (with-interactive-handler
-    (letfn [(run []
-              (with-restarts [(:retry []
-                                :describe "Retry the REPL evaluation"
-                                (run))]
-                (clojure.core/eval form)))]
-      (run))))
+  (binding [dgu/*restarts* []]
+    (with-interactive-handler
+      (with-retry-restart "Retry the REPL evaluation."
+        (clojure.core/eval form)))))
 
 (defn handled-future-call [future-call]
   (fn [f]
     (future-call (fn []
-                   (binding [*restarts* []]
+                   (binding [dgu/*restarts* []]
                      (with-interactive-handler
-                       (letfn [(run []
-                                 (with-restarts [(:retry []
-                                                   :describe "Retry the future evaluation from the start"
-                                                   (run))]
-                                   (f)))]
-                         (run))))))))
+                       (with-retry-restart "Retry the future evaluation from the start."
+                         (f))))))))
 
 (alter-var-root #'clojure.core/future-call handled-future-call)
 
 (defn handled-send-via [send-via]
   (fn [executor agent f & args]
-    (binding [*restarts* []]
-      (apply send-via
-             executor
-             agent
-             (fn [& args]
-               (with-interactive-handler
-                 (letfn [(run []
-                           (with-restarts [(:retry []
-                                             :describe "Retry the agent evaluation from the start"
-                                             (run))]
-                             (apply f args)))]
-                   (run))))
-             args))))
+    (letfn [(run []
+              (with-restarts [(:restart-and-retry []
+                                :describe "Restart the agent and retry this action dispatch."
+                                (restart-agent agent @agent)
+                                (run))
+                              (:restart-with-state-and-retry [state]
+                                :describe "Provide a new state to restart the agent and retry this action dispatch."
+                                :arguments #'dgu/read-unevaluated-value
+                                (restart-agent agent state)
+                                (run))]
+                (apply send-via
+                       executor
+                       agent
+                       (fn [state & args]
+                         (binding [dgu/*restarts* []]
+                           (with-interactive-handler
+                             (with-retry-restart "Retry the agent evaluation from the start."
+                               (with-restarts [(:ignore []
+                                                 :describe "Ignore this action and leave the agent's state unchanged."
+                                                 state)]
+                                 (apply f state args))))))
+                       args)))]
+      (run))))
 
 (alter-var-root #'clojure.core/send-via handled-send-via)
-
-(defmacro handled-future [& body]
-  `(future
-     (binding [*restarts* []]
-       (with-interactive-handler
-         (letfn [(run# []
-                   (with-restarts [(:retry []
-                                     :describe "Retry the future evaluation from the start"
-                                     (run#))]
-                     ~@body))]
-           (run#))))))
 
 (defn run-with-restart-stuff [h {:keys [op code eval] :as msg}]
   (h (if (and (= op "eval")
