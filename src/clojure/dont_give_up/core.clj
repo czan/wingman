@@ -1,4 +1,5 @@
-(ns dont-give-up.core)
+(ns dont-give-up.core
+  (:import [dont_give_up UseRestart HandlerResult]))
 
 (def ^:dynamic *handlers* [])
 (def ^:dynamic *restarts* [])
@@ -9,6 +10,10 @@
   (if (seq *handlers*)
     (let [[handler & others] *handlers*]
       (binding [*handlers* others]
+        ;; TODO: running these handlers should probably re-establish
+        ;; all of the bindings at the point where the handlers are
+        ;; conceptually run (ie. higher up the stack), which would
+        ;; then also include the *handlers* var
         (apply handler ex args)))
     (throw ex)))
 
@@ -19,74 +24,55 @@
                        (filter #(= (:name %) name))
                        first))]
     (if restart
-      (throw (ex-info "Use this restart"
-                      {::type :use-restart
-                       ::restart restart
-                       ::args args}))
+      (throw (UseRestart. restart args))
       (signal (IllegalArgumentException. (str "No restart registered for " name))))))
 
 (defn handled-value [id value]
-  (throw (ex-info "Return this handled value"
-                  {::type :handled-value
-                   ::id id
-                   ::value value})))
+  (throw (HandlerResult. id #(do value))))
 
 (defn thrown-value [id value]
-  (throw (ex-info "Throw a value"
-                  {::type :thrown-value
-                   ::id id
-                   ::value value})))
-
-(defn our-throwable? [t]
-  (and (instance? clojure.lang.ExceptionInfo t)
-       (::type (ex-data t))))
-
-(defn either-throw-or-signal [t]
-  (if (our-throwable? t)
-    (throw t)
-    (signal t)))
+  (throw (HandlerResult. id #(throw value))))
 
 (defn with-handler-fn [thunk handler]
   (let [id (gensym "handle-id")]
     (try
       (binding [*handlers* (cons (fn [ex & args]
                                    (try (handled-value id (apply handler ex args))
+                                        (catch UseRestart t
+                                          (throw t))
+                                        (catch HandlerResult t
+                                          (throw t))
                                         (catch Throwable t
-                                          (if (our-throwable? t)
-                                            (throw t)
-                                            (thrown-value id t)))))
+                                          (thrown-value id t))))
                                  *handlers*)]
         (try
           (thunk)
+          (catch UseRestart t
+            (throw t))
+          (catch HandlerResult t
+            (throw t))
           (catch Throwable t
-            (either-throw-or-signal t))))
-      (catch clojure.lang.ExceptionInfo e
-        (let [data (ex-data e)]
-          (cond
-            (and (= (::type data) :handled-value)
-                 (= (::id data) id))
-            (::value data)
-
-            (and (= (::type data) :thrown-value)
-                 (= (::id data) id))
-            (throw (::value data))
-
-            :else
-            (either-throw-or-signal e)))))))
+            (signal t))))
+      (catch HandlerResult t
+        (if (= (.-handlerId t) id)
+          ((.-thunk t))
+          (throw t))))))
 
 (defn with-restarts-fn [thunk restarts]
   (try
     (binding [*restarts* (into (vec restarts) *restarts*)]
       (try
         (thunk)
+        (catch UseRestart t
+          (throw t))
+        (catch HandlerResult t
+          (throw t))
         (catch Throwable t
-          (either-throw-or-signal t))))
-    (catch clojure.lang.ExceptionInfo e
-      (let [data (ex-data e)]
-        (if (and (= (::type data) :use-restart)
-                 (some #(= % (::restart data)) restarts))
-          (apply (:behaviour (::restart data)) (::args data))
-          (either-throw-or-signal e))))))
+          (signal t))))
+    (catch UseRestart t
+      (if (some #(= % (.-restart t)) restarts)
+        (apply (:behaviour (.-restart t)) (.-args t))
+        (throw t)))))
 
 (defn read-unevaluated-value [ex & args]
   (print "Enter a value to be used (unevaluated): ")
