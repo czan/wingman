@@ -90,9 +90,13 @@
                        (fn [state & args]
                          (binding [dgu/*restarts* []]
                            (with-interactive-handler
-                             (with-retry-restart "Retry the agent evaluation from the start."
+                             (with-retry-restart "Retry the agent action from the start."
                                (with-restarts [(:ignore []
                                                  :describe "Ignore this action and leave the agent's state unchanged."
+                                                 state)
+                                               (:ignore-and-replace [state]
+                                                 :describe "Ignore this action and provide a new state for the agent."
+                                                 :arguments #'dgu/read-unevaluated-value
                                                  state)]
                                  (apply f state args))))))
                        args)))]
