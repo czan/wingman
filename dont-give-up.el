@@ -74,7 +74,6 @@
                          "]"))
     (insert " ")
     (setq name-bounds (dgu-insert-bounds name))
-    (insert " ")
     (unless (equal description "")
       (insert " - ")
       (setq description-bounds (dgu-insert-bounds description)))
