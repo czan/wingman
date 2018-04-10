@@ -216,15 +216,3 @@
                                               :requires {"input" "The input provided to the restart handler"}
                                               :optional {}
                                               :returns {}}}})
-
-(alter-var-root #'dont-give-up.core/read-unevaluated-value
-                (constantly (fn [ex & args]
-                              [(try (read-string (prompt-for-input "Enter a value to be used (unevaluated): "))
-                                    (catch Exception _
-                                      (throw ex)))])))
-
-(alter-var-root #'dont-give-up.core/read-and-eval-value
-                (constantly (fn [ex & args]
-                              [(eval (try (read-string (prompt-for-input "Enter a value to be used (evaluated): "))
-                                          (catch Exception _
-                                            (throw ex))))])))

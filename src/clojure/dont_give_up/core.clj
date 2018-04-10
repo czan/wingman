@@ -84,27 +84,25 @@
         (apply (:behaviour (.-restart t)) (.-args t))
         (throw t)))))
 
-(defn read-unevaluated-value [ex & args]
-  (print "Enter a value to be used (unevaluated): ")
+(defn prompt-with-stdin [prompt]
+  (print prompt)
   (flush)
-  (try (let [x [(read-string (read-line))]]
-         (println)
-         x)
-       (catch Exception t
-         (println)
-         (println "Couldn't read a value. Aborting.")
-         (throw ex))))
+  (read-line))
+
+(defn prompt-user [prompt]
+  (let [f (or (ns-resolve 'dont-give-up.middleware 'prompt-for-input)
+              prompt-with-stdin)]
+    (f prompt)))
+
+(defn read-unevaluated-value [ex & args]
+  [(try (read-string (prompt-user "Enter a value to be used (unevaluated): "))
+        (catch Exception _
+          (throw ex)))])
 
 (defn read-and-eval-value [ex & args]
-  (print "Enter a value to be used (evaluated): ")
-  (flush)
-  (try (let [x [(eval (read-string (read-line)))]]
-         (println)
-         x)
-       (catch Exception t
-         (println)
-         (println "Couldn't read a value. Aborting.")
-         (throw ex))))
+  [(eval (try (read-string (prompt-user "Enter a value to be used (evaluated): "))
+              (catch Exception _
+                (throw ex))))])
 
 (defmacro with-restarts
   {:style/indent [1 [[:defn]] :form]}
