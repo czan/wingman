@@ -90,11 +90,10 @@
   (try (let [x [(read-string (read-line))]]
          (println)
          x)
-       (catch Throwable t
+       (catch Exception t
          (println)
          (println "Couldn't read a value. Aborting.")
-         (flush)
-         (signal ex))))
+         (throw ex))))
 
 (defn read-and-eval-value [ex & args]
   (print "Enter a value to be used (evaluated): ")
@@ -102,10 +101,10 @@
   (try (let [x [(eval (read-string (read-line)))]]
          (println)
          x)
-       (catch Throwable t
+       (catch Exception t
          (println)
          (println "Couldn't read a value. Aborting.")
-         (signal ex))))
+         (throw ex))))
 
 (defmacro with-restarts
   {:style/indent [1 [[:defn]] :form]}
