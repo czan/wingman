@@ -117,6 +117,32 @@
                                          value#)
                                  (intern *ns* sym# value#))
                                (run#))
+                             (:refer-and-retry [sym# ns#]
+                               :applicable? #'unbound-var-exception?
+                               :describe (fn [ex# & args#]
+                                           (str "Provide a namespace to refer `" (pr-str (extract-var-name ex#)) "` from and retry the evaluation."))
+                               :arguments (fn [ex# & args#]
+                                            (cons (extract-var-name ex#)
+                                                  (apply dgu/read-unevaluated-value ex# args#)))
+                               (require [ns# :refer [sym#]])
+                               (run#))
+                             (:require-and-retry [ns#]
+                               :applicable? #'unknown-ns-exception?
+                               :describe (fn [ex# & args#]
+                                           (str "Require the `" (pr-str (extract-ns-name ex#)) "` namespace and retry the evaluation."))
+                               :arguments (fn [ex# & args#]
+                                            (list (extract-ns-name ex#)))
+                               (require ns#)
+                               (run#))
+                             (:require-alias-and-retry [alias# ns#]
+                               :applicable? #'unknown-ns-exception?
+                               :describe (fn [ex# & args#]
+                                           (str "Provide a namespace name, alias it as `" (pr-str (extract-ns-name ex#)) "` and retry the evaluation."))
+                               :arguments (fn [ex# & args#]
+                                            (cons (extract-ns-name ex#)
+                                                  (apply dgu/read-unevaluated-value ex# args#)))
+                               (require [ns# :as alias#])
+                               (run#))
                              (:create-and-retry [ns#]
                                :applicable? #'unknown-ns-exception?
                                :describe (fn [ex# & args#]
