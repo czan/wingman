@@ -48,11 +48,56 @@
                          (throw ex#))))]
      ~@body))
 
-(defmacro with-retry-restart [msg & body]
+(defn unbound-var-exception? [ex & args]
+  (and (instance? clojure.lang.Compiler$CompilerException ex)
+       (or (.startsWith (.getMessage (.getCause ex))
+                        "Unable to resolve symbol: ")
+           (.startsWith (.getMessage (.getCause ex))
+                        "No such var: "))))
+
+(defn extract-var-name [ex]
+  (read-string (.substring (.getMessage (.getCause ex))
+                           (if (.startsWith (.getMessage (.getCause ex))
+                                            "Unable to resolve symbol: ")
+                             (count "Unable to resolve symbol: ")
+                             (count "No such var: ")))))
+
+(defn unknown-ns-exception? [ex & args]
+  (and (instance? clojure.lang.Compiler$CompilerException ex)
+       (.startsWith (.getMessage (.getCause ex))
+                    "No such namespace: ")))
+
+(defn extract-ns-name [ex]
+  (read-string (.substring (.getMessage (.getCause ex))
+                           (count "No such namespace: "))))
+
+(defmacro with-retry-restart
+  [msg & body]
   {:style/indent [1]}
   `(letfn [(run# []
              (with-restarts [(:retry []
                                :describe ~msg
+                               (run#))
+                             (:define-and-retry [sym# value#]
+                               :applicable? #'unbound-var-exception?
+                               :describe (fn [ex# & args#]
+                                           (str "Provide a value for `" (pr-str (extract-var-name ex#)) "` and retry the evaluation."))
+                               :arguments (fn [ex# & args#]
+                                            (cons (extract-var-name ex#)
+                                                  (apply dgu/read-and-eval-value ex# args#)))
+                               (if (namespace sym#)
+                                 (intern (find-ns (symbol (namespace sym#)))
+                                         (symbol (name sym#))
+                                         value#)
+                                 (intern *ns* sym# value#))
+                               (run#))
+                             (:create-and-retry [ns#]
+                               :applicable? #'unknown-ns-exception?
+                               :describe (fn [ex# & args#]
+                                           (str "Create the `" (pr-str (extract-ns-name ex#)) "` namespace and retry the evaluation."))
+                               :arguments (fn [ex# & args#]
+                                            (list (extract-ns-name ex#)))
+                               (create-ns ns#)
                                (run#))]
                ~@body))]
      (run#)))
