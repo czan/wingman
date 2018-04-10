@@ -2,6 +2,13 @@
   (:require [clojure.test :refer :all]
             [dont-give-up.core :refer :all]))
 
+(use-fixtures :once (fn [f]
+                      (binding [*handlers* []
+                                *restarts* []]
+                        ;; clear things so the REPL binding doesn't
+                        ;; make everything fail
+                        (f))))
+
 (deftest handlers-should-use-the-first-matching-clause
   (is (= :value
          (with-handlers [(ArithmeticException [ex]
