@@ -76,14 +76,17 @@
        (or (.startsWith (.getMessage (.getCause ex))
                         "Unable to resolve symbol: ")
            (.startsWith (.getMessage (.getCause ex))
+                        "Unable to resolve var: ")
+           (.startsWith (.getMessage (.getCause ex))
                         "No such var: "))))
 
 (defn extract-var-name [ex]
   (read-string (.substring (.getMessage (.getCause ex))
-                           (if (.startsWith (.getMessage (.getCause ex))
-                                            "Unable to resolve symbol: ")
-                             (count "Unable to resolve symbol: ")
-                             (count "No such var: ")))))
+                           (condp #(when (.startsWith %2 %1) %1)
+                               (.getMessage (.getCause ex))
+                             "Unable to resolve symbol: " :>> count
+                             "Unable to resolve var: " :>> count
+                             "No such var: " :>> count))))
 
 (defn unknown-ns-exception? [ex & args]
   (and (instance? clojure.lang.Compiler$CompilerException ex)
