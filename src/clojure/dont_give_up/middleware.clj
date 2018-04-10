@@ -7,6 +7,7 @@
             [clojure.tools.nrepl.middleware.interruptible-eval :as e]))
 
 (def awaiting-restarts (atom {}))
+(def awaiting-prompts (atom {}))
 
 (defn prompt-for-restarts [ex args restarts]
   (if (seq restarts)
@@ -18,6 +19,7 @@
         (t/send transport
                 (response-for msg
                               :id id
+                              :type "restart/prompt"
                               :error (str (-> ex .getClass .getSimpleName)
                                           (if (empty? (.getMessage ex))
                                             ""
@@ -37,6 +39,27 @@
         (finally
           (swap! awaiting-restarts dissoc id))))
     nil))
+
+(defn prompt-for-input [prompt]
+  (let [timeout (Object.)
+        input (promise)
+        id (uuid)
+        {:keys [transport session] :as msg} e/*msg*]
+    (swap! awaiting-prompts assoc id input)
+    (try
+      (t/send transport
+              (response-for msg
+                            :id id
+                            :type "restart/ask"
+                            :prompt prompt))
+      (loop []
+        (let [value (deref input 100 timeout)]
+          (cond
+            (Thread/interrupted) (throw (InterruptedException.))
+            (= value timeout) (recur)
+            :else value)))
+      (finally
+        (swap! awaiting-prompts dissoc id)))))
 
 (defmacro with-interactive-handler [& body]
   `(with-handlers [(Throwable [ex# & args#]
@@ -167,17 +190,41 @@
           (t/send transport (response-for msg :status :done)))
       (t/send transport (response-for msg :status :error)))))
 
+(defn answer-prompt [{:keys [id input transport] :as msg}]
+  (let [promise (get (deref awaiting-prompts) id)]
+    (if promise
+      (do (deliver promise input)
+          (t/send transport (response-for msg :status :done)))
+      (t/send transport (response-for msg :status :error)))))
+
 (defn handle-restarts [h]
   (fn [msg]
     (case (:op msg)
       "eval" (run-with-restart-stuff h msg)
-      "choose-restart" (choose-restart msg)
+      "restart/choose" (choose-restart msg)
+      "restart/answer" (answer-prompt msg)
       (h msg))))
 
 (set-descriptor! #'handle-restarts
                  {:requires #{#'session}
                   :expects #{"eval"}
-                  :handles {"choose-restart" {:doc "Select a restart"
+                  :handles {"restart/choose" {:doc "Select a restart"
                                               :requires {"index" "The index of the reset to choose"}
                                               :optional {}
+                                              :returns {}}
+                            "restart/answer" {:doc "Provide input to a restart prompt"
+                                              :requires {"input" "The input provided to the restart handler"}
+                                              :optional {}
                                               :returns {}}}})
+
+(alter-var-root #'dont-give-up.core/read-unevaluated-value
+                (constantly (fn [ex & args]
+                              [(try (read-string (prompt-for-input "Enter a value to be used (unevaluated): "))
+                                    (catch Exception _
+                                      (throw ex)))])))
+
+(alter-var-root #'dont-give-up.core/read-and-eval-value
+                (constantly (fn [ex & args]
+                              [(eval (try (read-string (prompt-for-input "Enter a value to be used (evaluated): "))
+                                          (catch Exception _
+                                            (throw ex))))])))

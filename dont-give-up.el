@@ -14,10 +14,17 @@
       (process-send-string nil message))))
 
 (defun dgu-handle-nrepl-response (response)
-  (nrepl-dbind-response response (id error detail restarts)
-    (when restarts
-      (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
-      (dgu-prompt-user id error detail restarts))))
+  (nrepl-dbind-response response (id type)
+    (cond
+     ((equal type "restart/prompt")
+      (nrepl-dbind-response response (error detail restarts)
+        (when restarts
+          (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
+          (dgu-prompt-user id error detail restarts))))
+     ((equal type "restart/ask")
+      (nrepl-dbind-response response (prompt)
+        (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
+        (dgu-ask-user id prompt (cider-current-connection)))))))
 
 (define-derived-mode dgu-restart-prompt-mode special-mode "DGU")
 
@@ -49,7 +56,7 @@
 
 (defun dgu-send-restart-choice (id restart connection)
   (nrepl-send-response-to id
-                          `("op" "choose-restart"
+                          `("op" "restart/choose"
                             "restart" ,restart
                             "id" ,id)
                           connection)
@@ -119,5 +126,13 @@
       (goto-char (point-min))
       (setq-local dgu-restart-request-id id)
       (setq-local dgu-restarts restarts))))
+
+(defun dgu-ask-user (id prompt connection)
+  (message "%s"(type-of prompt))
+  (nrepl-send-response-to id
+                          `("op" "restart/answer"
+                            "input" ,(read-string prompt)
+                            "id" ,id)
+                          connection))
 
 (add-hook 'nrepl-response-handler-functions #'dgu-handle-nrepl-response)
