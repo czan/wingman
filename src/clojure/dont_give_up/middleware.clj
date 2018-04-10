@@ -118,7 +118,7 @@
 (defn choose-restart [{:keys [id restart transport] :as msg}]
   (let [promise (get (deref awaiting-restarts) id)]
     (if promise
-      (do (deliver promise restart)
+      (do (deliver promise (if (number? restart) restart))
           (t/send transport (response-for msg :status :done)))
       (t/send transport (response-for msg :status :error)))))
 
