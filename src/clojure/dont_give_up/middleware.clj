@@ -19,8 +19,9 @@
                 (response-for msg
                               :id id
                               :error (str (-> ex .getClass .getSimpleName)
-                                          ": "
-                                          (.getMessage ex))
+                                          (if (empty? (.getMessage ex))
+                                            ""
+                                            (str ": " (.getMessage ex))))
                               :detail (with-out-str
                                         (let [out (java.io.PrintWriter. *out*)]
                                           (.printStackTrace ex out)))
