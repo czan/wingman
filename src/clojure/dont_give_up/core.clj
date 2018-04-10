@@ -4,7 +4,7 @@
 (def ^:dynamic *handlers* [])
 (def ^:dynamic *restarts* [])
 
-(defrecord Restart [name describe make-arguments behaviour])
+(defrecord Restart [name describe applicable? make-arguments behaviour])
 
 (defn signal [ex & args]
   (if (seq *handlers*)
@@ -16,6 +16,11 @@
         ;; then also include the *handlers* var
         (apply handler ex args)))
     (throw ex)))
+
+(defn applicable-restarts [restarts ex args]
+  (filterv (fn [restart]
+             (apply (:applicable? restart) ex args))
+           restarts))
 
 (defn use-restart [name & args]
   (let [restart (if (instance? Restart name)
@@ -37,7 +42,12 @@
   (let [id (gensym "handle-id")]
     (try
       (binding [*handlers* (cons (fn [ex & args]
-                                   (try (handled-value id (apply handler ex args))
+                                   (try (binding [*restarts* (applicable-restarts *restarts* ex args)]
+                                          ;; run the handlers in an
+                                          ;; environment hiding the
+                                          ;; restarts that aren't
+                                          ;; applicable
+                                          (handled-value id (apply handler ex args)))
                                         (catch UseRestart t
                                           (throw t))
                                         (catch HandlerResult t
@@ -108,16 +118,25 @@
                (let [[name args & body] restart]
                  (loop [body body
                         describe `(constantly "")
+                        applicable? `(constantly true)
                         make-arguments `(constantly nil)]
                    (cond
                      (= (first body) :describe)
                      (recur (nnext body)
+                            (second body)
+                            applicable?
+                            make-arguments)
+
+                     (= (first body) :applicable?)
+                     (recur (nnext body)
+                            describe
                             (second body)
                             make-arguments)
 
                      (= (first body) :arguments)
                      (recur (nnext body)
                             describe
+                            applicable?
                             (second body))
 
                      :else
@@ -126,6 +145,7 @@
                                    (if (string? d#)
                                      (constantly d#)
                                      d#))
+                                 ~applicable?
                                  ~make-arguments
                                  (fn ~(vec args)
                                    ~@body)))))))
