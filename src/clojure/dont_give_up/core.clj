@@ -94,15 +94,20 @@
               prompt-with-stdin)]
     (f prompt)))
 
+(defn eval* [form]
+  (let [f (or (ns-resolve 'dont-give-up.middleware 'handled-eval)
+              eval)]
+    (f form)))
+
 (defn read-unevaluated-value [ex & args]
   [(try (read-string (prompt-user "Enter a value to be used (unevaluated): "))
         (catch Exception _
           (throw ex)))])
 
 (defn read-and-eval-value [ex & args]
-  [(eval (try (read-string (prompt-user "Enter a value to be used (evaluated): "))
-              (catch Exception _
-                (throw ex))))])
+  [(eval* (try (read-string (prompt-user "Enter a value to be used (evaluated): "))
+               (catch Exception _
+                 (throw ex))))])
 
 (defmacro with-restarts
   {:style/indent [1 [[:defn]] :form]}
