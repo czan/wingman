@@ -48,9 +48,9 @@ You can also evaluate `x` in the REPL to see that it is, in fact, `300`.
 
 ## Why restarts?
 
-Why should we want to use restarts in Clojure? Chris Houser already gave us a great model for error handling in Clojure, why should I use `dont-give-up`? The answer to this question is really about _interactivity_.
+Why should we want to use restarts in Clojure? [Chris Houser already gave us a great model for error handling in Clojure](https://www.youtube.com/watch?v=zp0OEDcAro0), why should I use `dont-give-up`? The answer to this question is really about _interactivity_.
 
-The method of binding dynamic variables for error handling is roughly equivalent to what `dont-give-up` does, but where the plain dynamic-variables approach fails is tool support. There is no way for a tool to find out what the options are to restart execution, and to present that choice to the user in an interactive session. From the start, the focus in `dont-give-up` has been on the REPL experience. It is primarily about recovering from errors in the REPL, and then making that same functionality available in code.
+The method of binding dynamic variables for error handling is roughly equivalent to what `dont-give-up` does, but where the plain dynamic-variables approach fails is tool support. There is no way for a tool to find out what the options are to restart execution, and to present that choice to the user in an interactive session. From the start, the focus in `dont-give-up` has been on the REPL experience. It is primarily about recovering from errors in the REPL, and only then making that same functionality available in code.
 
 ## What about Exceptions?
 
