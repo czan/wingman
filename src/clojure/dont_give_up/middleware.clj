@@ -76,10 +76,14 @@
   (fn [executor agent f & args]
     (letfn [(run []
               (with-restarts [(:restart-and-retry []
+                                :applicable? (fn [ex & args]
+                                               (.startsWith (.getMessage ex) "Agent is failed"))
                                 :describe "Restart the agent and retry this action dispatch."
                                 (restart-agent agent @agent)
                                 (run))
                               (:restart-with-state-and-retry [state]
+                                :applicable? (fn [ex & args]
+                                               (.startsWith (.getMessage ex) "Agent is failed"))
                                 :describe "Provide a new state to restart the agent and retry this action dispatch."
                                 :arguments #'dgu/read-unevaluated-value
                                 (restart-agent agent state)
