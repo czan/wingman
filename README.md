@@ -6,7 +6,7 @@ Oh no, something's gone wrong! Don't give up! Restart your computation using Com
 
 Restarts can be used in code, as shown below, or they can be used interactively. When an exception is thrown, the user is asked which restart to use (if there are any available). This has been implemented as nrepl middleware, with an associated cider extension.
 
-To run interactively, load `dont-give-up.el` from this repo, and install the `dont-give-up.middleware/handle-restarts` middleware.
+To run interactively, load `dont-give-up.el` from this repo in Emacs, and install the `dont-give-up.middleware/handle-restarts` middleware.
 
 ## Example
 
