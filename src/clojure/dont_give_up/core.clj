@@ -70,7 +70,7 @@
 
 (defn with-restarts-fn [thunk restarts]
   (try
-    (binding [*restarts* (into (vec restarts) *restarts*)]
+    (binding [*restarts* (concat restarts *restarts*)]
       (try
         (thunk)
         (catch UseRestart t
@@ -113,45 +113,46 @@
   {:style/indent [1 [[:defn]] :form]}
   [restarts & body]
   `(with-restarts-fn
-    (fn ^:once [] ~@body)
-    ~(mapv (fn [restart]
-             (if (symbol? restart)
-               restart
-               (let [[name args & body] restart]
-                 (loop [body body
-                        describe `(constantly "")
-                        applicable? `(constantly true)
-                        make-arguments `(constantly nil)]
-                   (cond
-                     (= (first body) :describe)
-                     (recur (nnext body)
-                            (second body)
-                            applicable?
-                            make-arguments)
+     (fn ^:once [] ~@body)
+     (lazy-seq
+      ~(mapv (fn [restart]
+               (if (symbol? restart)
+                 restart
+                 (let [[name args & body] restart]
+                   (loop [body body
+                          describe `(constantly "")
+                          applicable? `(constantly true)
+                          make-arguments `(constantly nil)]
+                     (cond
+                       (= (first body) :describe)
+                       (recur (nnext body)
+                              (second body)
+                              applicable?
+                              make-arguments)
 
-                     (= (first body) :applicable?)
-                     (recur (nnext body)
-                            describe
-                            (second body)
-                            make-arguments)
+                       (= (first body) :applicable?)
+                       (recur (nnext body)
+                              describe
+                              (second body)
+                              make-arguments)
 
-                     (= (first body) :arguments)
-                     (recur (nnext body)
-                            describe
-                            applicable?
-                            (second body))
+                       (= (first body) :arguments)
+                       (recur (nnext body)
+                              describe
+                              applicable?
+                              (second body))
 
-                     :else
-                     `(->Restart ~name
-                                 (let [d# ~describe]
-                                   (if (string? d#)
-                                     (constantly d#)
-                                     d#))
-                                 ~applicable?
-                                 ~make-arguments
-                                 (fn ~(vec args)
-                                   ~@body)))))))
-           restarts)))
+                       :else
+                       `(->Restart ~name
+                                   (let [d# ~describe]
+                                     (if (string? d#)
+                                       (constantly d#)
+                                       d#))
+                                   ~applicable?
+                                   ~make-arguments
+                                   (fn ~(vec args)
+                                     ~@body)))))))
+             restarts))))
 
 (defmacro with-handlers
   {:style/indent [1 [[:defn]] :form]}
