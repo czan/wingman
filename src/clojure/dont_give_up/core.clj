@@ -8,13 +8,7 @@
 
 (defn signal [ex]
   (if (seq *handlers*)
-    (let [[handler & others] *handlers*]
-      (binding [*handlers* others]
-        ;; TODO: running these handlers should probably re-establish
-        ;; all of the bindings at the point where the handlers are
-        ;; conceptually run (ie. higher up the stack), which would
-        ;; then also include the *handlers* var
-        (handler ex)))
+    ((first *handlers*) ex)
     (throw ex)))
 
 (defn applicable-restarts [restarts ex]
@@ -39,21 +33,23 @@
   (throw (HandlerResult. id #(throw value))))
 
 (defn with-handler-fn [thunk handler]
-  (let [id (gensym "handle-id")]
+  (let [id (gensym "handle-id")
+        definition-frame (clojure.lang.Var/getThreadBindingFrame)]
     (try
       (binding [*handlers* (cons (fn [ex]
-                                   (try (binding [*restarts* (applicable-restarts *restarts* ex)]
-                                          ;; run the handlers in an
-                                          ;; environment hiding the
-                                          ;; restarts that aren't
-                                          ;; applicable
-                                          (handled-value id (handler ex)))
-                                        (catch UseRestart t
-                                          (throw t))
-                                        (catch HandlerResult t
-                                          (throw t))
-                                        (catch Throwable t
-                                          (thrown-value id t))))
+                                   (let [restarts (applicable-restarts *restarts* ex)
+                                         execution-frame (clojure.lang.Var/getThreadBindingFrame)]
+                                     (try (clojure.lang.Var/resetThreadBindingFrame definition-frame)
+                                          (binding [*restarts* restarts]
+                                            (handled-value id (handler ex)))
+                                          (catch UseRestart t
+                                            (throw t))
+                                          (catch HandlerResult t
+                                            (throw t))
+                                          (catch Throwable t
+                                            (thrown-value id t))
+                                          (finally
+                                            (clojure.lang.Var/resetThreadBindingFrame execution-frame)))))
                                  *handlers*)]
         (try
           (thunk)
