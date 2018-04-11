@@ -110,11 +110,11 @@ Now, when an exception is thrown, if there are restarts available you will be pr
                     (div n value))]
     (/ n d)))
 
-(with-handlers [(ArithmeticException [ex]
+(with-handlers [(ArithmeticException ex
                   (use-restart :use-value 100))]
   (div 3 0)) ;; => 100
 
-(with-handlers [(ArithmeticException [ex]
+(with-handlers [(ArithmeticException ex
                   (use-restart :use-denominator 100))]
   (div 3 0)) ;; => 3/100
 ```

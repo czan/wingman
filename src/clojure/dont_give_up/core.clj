@@ -6,7 +6,7 @@
 
 (defrecord Restart [name describe applicable? make-arguments behaviour])
 
-(defn signal [ex & args]
+(defn signal [ex]
   (if (seq *handlers*)
     (let [[handler & others] *handlers*]
       (binding [*handlers* others]
@@ -14,12 +14,12 @@
         ;; all of the bindings at the point where the handlers are
         ;; conceptually run (ie. higher up the stack), which would
         ;; then also include the *handlers* var
-        (apply handler ex args)))
+        (handler ex)))
     (throw ex)))
 
-(defn applicable-restarts [restarts ex args]
+(defn applicable-restarts [restarts ex]
   (filterv (fn [restart]
-             (apply (:applicable? restart) ex args))
+             ((:applicable? restart) ex))
            restarts))
 
 (defn use-restart [name & args]
@@ -28,9 +28,9 @@
                   (->> *restarts*
                        (filter #(= (:name %) name))
                        first))]
-    (if restart
-      (throw (UseRestart. restart args))
-      (signal (IllegalArgumentException. (str "No restart registered for " name))))))
+    (throw (if restart
+             (UseRestart. restart args)
+             (IllegalArgumentException. (str "No restart registered for " name))))))
 
 (defn handled-value [id value]
   (throw (HandlerResult. id #(do value))))
@@ -41,13 +41,13 @@
 (defn with-handler-fn [thunk handler]
   (let [id (gensym "handle-id")]
     (try
-      (binding [*handlers* (cons (fn [ex & args]
-                                   (try (binding [*restarts* (applicable-restarts *restarts* ex args)]
+      (binding [*handlers* (cons (fn [ex]
+                                   (try (binding [*restarts* (applicable-restarts *restarts* ex)]
                                           ;; run the handlers in an
                                           ;; environment hiding the
                                           ;; restarts that aren't
                                           ;; applicable
-                                          (handled-value id (apply handler ex args)))
+                                          (handled-value id (handler ex)))
                                         (catch UseRestart t
                                           (throw t))
                                         (catch HandlerResult t
@@ -99,12 +99,12 @@
               eval)]
     (f form)))
 
-(defn read-unevaluated-value [ex & args]
+(defn read-unevaluated-value [ex]
   [(try (read-string (prompt-user "Enter a value to be used (unevaluated): "))
         (catch Exception _
           (throw ex)))])
 
-(defn read-and-eval-value [ex & args]
+(defn read-and-eval-value [ex]
   [(eval* (try (read-string (prompt-user "Enter a value to be used (evaluated): "))
                (catch Exception _
                  (throw ex))))])
@@ -156,16 +156,14 @@
 (defmacro with-handlers
   {:style/indent [1 [[:defn]] :form]}
   [handlers & body]
-  (let [ex-sym (gensym "ex")
-        args-sym (gensym "args")]
+  (let [ex-sym (gensym "ex")]
     `(with-handler-fn
       (fn ^:once [] ~@body)
-      (fn [~ex-sym & ~args-sym]
+      (fn [~ex-sym]
         (cond
-          ~@(mapcat (fn [[type args & body]]
+          ~@(mapcat (fn [[type arg & body]]
                       `((instance? ~type ~ex-sym)
-                        (apply (fn ~(vec args)
-                                 ~@body)
-                               ~ex-sym ~args-sym)))
+                        (let [~arg ~ex-sym]
+                          ~@body)))
                     handlers)
-          :else (apply signal ~ex-sym ~args-sym))))))
+          :else (signal ~ex-sym))))))
