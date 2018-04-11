@@ -120,59 +120,48 @@
                                (run#))
                              (:define-and-retry [sym# value#]
                                :applicable? #'unbound-var-exception?
-                               :describe (fn [ex#]
-                                           (str "Provide a value for `" (pr-str (extract-var-name ex#)) "` and retry the evaluation."))
-                               :arguments (fn [ex#]
-                                            (cons (extract-var-name ex#)
-                                                  (dgu/read-and-eval-value ex#)))
+                               :describe #(str "Provide a value for `" (pr-str (extract-var-name %)) "` and retry the evaluation.")
+                               :arguments #(cons (extract-var-name %) (dgu/read-and-eval-value %))
                                (if (namespace sym#)
                                  (intern (find-ns (symbol (namespace sym#)))
                                          (symbol (name sym#))
                                          value#)
                                  (intern *ns* sym# value#))
                                (run#))
+                             (:refer-and-retry [sym# ns#]
+                               :applicable? #(unbound-var-exception? %)
+                               :describe #(str "Provide a namespace to refer `" (pr-str (extract-var-name %)) "` from and retry the evaluation.")
+                               :arguments #(cons (extract-var-name %) (dgu/read-unevaluated-value %))
+                               (when-not (find-ns ns#)
+                                 (require ns#))
+                               (binding [*ns* (or (and (namespace sym#)
+                                                       (find-ns (symbol (namespace sym#))))
+                                                  *ns*)]
+                                 (refer ns# :only [(symbol (name sym#))]))
+                               (run#))
                              (:import-and-retry [classname# package#]
                                :applicable? #'missing-classname-exception?
-                               :describe (fn [ex#]
-                                           (str "Provide a package to import the class from and retry the evaluation."))
-                               :arguments (fn [ex#]
-                                            (cons (extract-classname ex#)
-                                                  (dgu/read-unevaluated-value ex#)))
+                               :describe "Provide a package to import the class from and retry the evaluation."
+                               :arguments #(cons (extract-classname %) (dgu/read-unevaluated-value %))
                                (.importClass *ns*
                                              (clojure.lang.RT/classForName (str (name package#) "." (name classname#))))
                                (run#))
-                             (:refer-and-retry [sym# ns#]
-                               :applicable? #'unbound-var-exception?
-                               :describe (fn [ex#]
-                                           (str "Provide a namespace to refer `" (pr-str (extract-var-name ex#)) "` from and retry the evaluation."))
-                               :arguments (fn [ex#]
-                                            (cons (extract-var-name ex#)
-                                                  (dgu/read-unevaluated-value ex#)))
-                               (require [ns# :refer [sym#]])
-                               (run#))
                              (:require-and-retry [ns#]
                                :applicable? #'unknown-ns-exception?
-                               :describe (fn [ex#]
-                                           (str "Require the `" (pr-str (extract-ns-name ex#)) "` namespace and retry the evaluation."))
-                               :arguments (fn [ex#]
-                                            (list (extract-ns-name ex#)))
+                               :describe #(str "Require the `" (pr-str (extract-ns-name %)) "` namespace and retry the evaluation.")
+                               :arguments #(list (extract-ns-name %))
                                (require ns#)
                                (run#))
                              (:require-alias-and-retry [alias# ns#]
                                :applicable? #'unknown-ns-exception?
-                               :describe (fn [ex#]
-                                           (str "Provide a namespace name, alias it as `" (pr-str (extract-ns-name ex#)) "` and retry the evaluation."))
-                               :arguments (fn [ex#]
-                                            (cons (extract-ns-name ex#)
-                                                  (dgu/read-unevaluated-value ex#)))
+                               :describe #(str "Provide a namespace name, alias it as `" (pr-str (extract-ns-name %)) "` and retry the evaluation.")
+                               :arguments #(cons (extract-ns-name %) (dgu/read-unevaluated-value %))
                                (require [ns# :as alias#])
                                (run#))
                              (:create-and-retry [ns#]
                                :applicable? #'unknown-ns-exception?
-                               :describe (fn [ex#]
-                                           (str "Create the `" (pr-str (extract-ns-name ex#)) "` namespace and retry the evaluation."))
-                               :arguments (fn [ex#]
-                                            (list (extract-ns-name ex#)))
+                               :describe #(str "Create the `" (pr-str (extract-ns-name %)) "` namespace and retry the evaluation.")
+                               :arguments #(list (extract-ns-name %))
                                (create-ns ns#)
                                (run#))]
                ~@body))]
