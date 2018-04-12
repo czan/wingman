@@ -128,7 +128,7 @@
                                  (intern *ns* sym# value#))
                                (run#))
                              (:refer-and-retry [sym# ns#]
-                               :applicable? #(unbound-var-exception? %)
+                               :applicable? #'unbound-var-exception?
                                :describe #(str "Provide a namespace to refer `" (pr-str (extract-var-name %)) "` from and retry the evaluation.")
                                :arguments #(cons (extract-var-name %) (dgu/read-unevaluated-value %))
                                (when-not (find-ns ns#)
