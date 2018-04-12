@@ -82,7 +82,7 @@
     (insert " ")
     (setq name-bounds (dgu-insert-bounds name))
     (unless (equal description "")
-      (insert " - ")
+      (insert " ")
       (setq description-bounds (dgu-insert-bounds description)))
     (let ((map (make-sparse-keymap)))
       (if index
@@ -127,7 +127,6 @@
                 restarts))
       (dgu-insert-restart-prompt nil "abort" (or abort "Rethrow the exception."))
       (insert "\n")
-      (insert "----------------------\n")
       (goto-char (point-min))
       (when error-bounds
         (put-text-property (car error-bounds) (cdr error-bounds)
