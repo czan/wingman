@@ -174,7 +174,7 @@
         (clojure.core/eval form)))))
 
 (defn handled-future-call [future-call]
-  (let [future-call (or (:original (meta future-call))
+  (let [future-call (or (::original (meta future-call))
                         future-call)]
     (with-meta
       (fn [f]
@@ -183,12 +183,12 @@
                          (with-interactive-handler
                            (with-retry-restart "Retry the future evaluation from the start."
                              (f)))))))
-      {:original future-call})))
+      {::original future-call})))
 
 (alter-var-root #'clojure.core/future-call handled-future-call)
 
 (defn handled-send-via [send-via]
-  (let [send-via (or (:original send-via)
+  (let [send-via (or (::original (meta send-via))
                      send-via)]
     (with-meta
       (fn [executor agent f & args]
@@ -223,7 +223,7 @@
                                      (apply f state args))))))
                            args)))]
           (run)))
-      {:original send-via})))
+      {::original send-via})))
 
 (alter-var-root #'clojure.core/send-via handled-send-via)
 
