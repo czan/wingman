@@ -214,14 +214,20 @@
                              (binding [dgu/*restarts* []]
                                (with-interactive-handler
                                  (with-retry-restart "Retry the agent action from the start."
-                                   (with-restarts [(:ignore []
-                                                     :describe "Ignore this action and leave the agent's state unchanged."
-                                                     state)
-                                                   (:ignore-and-replace [state]
-                                                     :describe "Ignore this action and provide a new state for the agent."
-                                                     :arguments #'dgu/read-unevaluated-value
-                                                     state)]
-                                     (apply f state args))))))
+                                   (letfn [(run [state args]
+                                             (with-restarts [(:ignore []
+                                                               :describe "Ignore this action and leave the agent's state unchanged."
+                                                               state)
+                                                             (:ignore-and-replace [state]
+                                                               :describe "Ignore this action and provide a new state for the agent."
+                                                               :arguments #'dgu/read-unevaluated-value
+                                                               state)
+                                                             (:replace-and-retry [state]
+                                                               :describe "Provide a new state for the agent, then retry the action."
+                                                               :arguments #'dgu/read-unevaluated-value
+                                                               (run state args))]
+                                               (apply f state args)))]
+                                     (run state args))))))
                            args)))]
           (run)))
       {::original send-via})))
