@@ -108,9 +108,9 @@
 
 (defun dgu-prompt-user (id error abort causes restarts)
   (with-current-buffer (cider-popup-buffer (generate-new-buffer-name "*dgu-prompt*") :select)
+    (dgu-restart-prompt-mode)
     ;; cider-stacktrace relies on this pointing to the right buffer,
     ;; so we just set it right away
-    (dgu-restart-prompt-mode)
     (setq-local cider-error-buffer (current-buffer))
     (let ((inhibit-read-only t)
           error-bounds)
