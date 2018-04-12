@@ -6,7 +6,14 @@ Oh no, something's gone wrong! Don't give up! Restart your computation using Com
 
 Restarts can be used in code, as shown below, or they can be used interactively. When an exception is thrown, the user is asked which restart to use (if there are any available). This has been implemented as nrepl middleware, with an associated cider extension.
 
-To run interactively, load `dont-give-up.el` from this repo in Emacs, and install the `dont-give-up.middleware/handle-restarts` middleware.
+`dont-give-up` has been designed to be as unobtrusive as possible. You can add it to your `~/.lein/profiles.clj` file to get the benefit of interactive restarts in CIDER without affecting anything else.
+
+To use interactive restarts with CIDER, load `dont-give-up.el` from this repo in Emacs, and install the `dont-give-up.middleware/handle-restarts` middleware. You can do this by adding it to `~/.lein/profiles.clj`, like this:
+
+```clojure
+{:user {:dependencies [[org.clojars.czan/dont-give-up "0.1.0-SNAPSHOT"]]
+        :repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]}}}
+```
 
 ## Example
 
@@ -19,32 +26,35 @@ In a newly-started CIDER REPL with the `dont-give-up` middleware loaded, run:
 Your REPL should now freeze (because the evaluation is waiting), and a new buffer should pop up with the following:
 
 ```
-CompilerException: java.lang.RuntimeException: Unable to resolve symbol: x in this context, compiling:(*cider-repl dont-give-up*:43:7)
+Unable to resolve symbol: x in this context
 
 The following restarts are available:
-  [1] retry - Retry the REPL evaluation.
-  [2] define-and-retry - Provide a value for `x` and retry the evaluation.
-  [q] abort - Rethrow the exception.
+  [1] :retry Retry the REPL evaluation.
+  [2] :define-and-retry Provide a value for `x` and retry the evaluation.
+  [3] :refer-and-retry Provide a namespace to refer `x` from and retry the evaluation.
+  [q] abort Abort this evaluation.
 
-----------------------
-java.lang.RuntimeException: Unable to resolve symbol: x in this context, compiling:(*cider-repl dont-give-up*:43:7)
-	at clojure.lang.Compiler.analyze(Compiler.java:6688)
-...
+
+... Followed by exception details/stacktrace
 ```
 
-You are being asked how to continue. As the message explains, you have three options:
+You are being asked how to continue. As the message explains, you have four options:
 
 1. Retry the evaluation again, exactly the same as it was. In this case it would just fail again, as `x` still hasn't been defined, but this can be helpful for some things which resolve themselves.
 
 2. Retry the evaluation again, but after defining `x`. If you choose this option you will be prompted for a value to use. `x` will then be defined in the current namespace to the value you provided, and the evaluation will be run again.
 
-3. Abort. Rethrow the exception and have CIDER display it to us, as normal.
+3. Retry the evaluation again, but after referring the var from another namespace. If you choose this option you will be prompted for a namespace to refer. `x` will then be defined as if you had run `(require `[~provided-ns :refer [x]])`.
+
+4. Abort. Just give up, and stop.
 
 For this example, we'll select 2. Press the `2` key on your keyboard, and type the number `300` into the minibuffer prompt.
 
 The REPL should now show the return value of the evaluation: `301`.
 
 You can also evaluate `x` in the REPL to see that it is, in fact, `300`.
+
+To show off another option, try running `(union #{1 2} #{2 3})`, and using the interactive restart to refer from `clojure.set`.
 
 ## Why restarts?
 
@@ -57,42 +67,6 @@ The method of binding dynamic variables for error handling is roughly equivalent
 Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most past this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have no effect on a program unless it opts-in to using them by installing handlers.
 
 There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from Throwable, so as long as you don't catch Throwable you should be fine. If you do catch Throwable, please ensure that `dont_give_up.UseRestart` and `dont_give_up.HandlerResult` are re-thrown.
-
-## Usage (interactive)
-
-Add `[org.clojars.czan/dont-give-up "0.1.0-SNAPSHOT"]` to your dependencies and `:repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]}` to your `project.clj`.
-
-Download `dont-give-up.el` from this repository and run `(load "/path/to/dont-live-up.el")`.
-
-Now, when an exception is thrown, if there are restarts available you will be prompted for which one to use:
-
-```clojure
-(require '[dont-give-up.core :refer (with-restarts with-handlers read-unevaluated-value use-restart)])
-
-(defn div [n d]
-  (with-restarts [(:use-value [value]
-                    :arguments #'read-unevaluated-value
-                    :describe "Provide a value to use."
-                    value)
-                  (:use-denominator [value]
-                    :arguments #'read-unevaluated-value
-                    :describe "Provide a new denominator and retry."
-                    (div n value))]
-    (/ n d)))
-
-(div 3 0)
-;; ArithmeticException: Divide by zero
-;; 
-;; The following restarts are available:
-;;   [1] use-value - Provide a value to use instead.
-;;   [2] use-denominator - Provide a value to use as the denominator.
-;;   [q] abort - Rethrow the exception.
-;; 
-;; ----------------------
-;; java.lang.ArithmeticException: Divide by zero
-;; 	at clojure.lang.Numbers.divide(Numbers.java:158)
-;;  ...
-```
 
 ## Usage (code)
 
