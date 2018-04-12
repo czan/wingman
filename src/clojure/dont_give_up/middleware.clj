@@ -24,6 +24,8 @@
                                           (if (empty? (.getMessage ex))
                                             ""
                                             (str ": " (.getMessage ex))))
+                              :causes (map #(response-for msg %)
+                                           (cider.nrepl.middleware.stacktrace/analyze-causes ex pprint))
                               :detail (with-out-str
                                         (let [out (java.io.PrintWriter. *out*)]
                                           (.printStackTrace ex out)))

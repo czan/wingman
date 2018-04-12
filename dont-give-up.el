@@ -17,16 +17,16 @@
   (nrepl-dbind-response response (id type)
     (cond
      ((equal type "restart/prompt")
-      (nrepl-dbind-response response (error detail restarts)
+      (nrepl-dbind-response response (error detail restarts causes)
         (when restarts
           (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
-          (dgu-prompt-user id error detail restarts))))
+          (dgu-prompt-user id error detail causes restarts))))
      ((equal type "restart/ask")
       (nrepl-dbind-response response (prompt)
         (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
         (dgu-ask-user id prompt (cider-current-connection)))))))
 
-(define-derived-mode dgu-restart-prompt-mode special-mode "DGU")
+(define-derived-mode dgu-restart-prompt-mode cider-stacktrace-mode "DGU")
 
 (defun dgu-choose-restart (&optional index)
   (interactive)
@@ -84,6 +84,7 @@
     (unless (equal description "")
       (insert " - ")
       (setq description-bounds (dgu-insert-bounds description)))
+    (insert "\n")
     (let ((map (make-sparse-keymap)))
       (if index
           (progn
@@ -101,14 +102,17 @@
                              mouse-face highlight
                              help-echo "mouse-2: use this restart")))
     (put-text-property (car prompt-bounds) (cdr prompt-bounds)
-                       'face 'cider-debug-prompt-face)
-    (insert "\n")))
+                       'face 'cider-debug-prompt-face)))
 
-(defun dgu-prompt-user (id error detail restarts)
+(defun dgu-prompt-user (id error detail causes restarts)
   (with-current-buffer (cider-popup-buffer (generate-new-buffer-name "*dgu-prompt*") :select)
+    ;; cider-stacktrace relies on this pointing to the right buffer,
+    ;; so we just set it right away
+    (setq-local cider-error-buffer (current-buffer))
     (dgu-restart-prompt-mode)
     (let ((inhibit-read-only t))
-      (delete-region (point-min) (point-max))
+      (cider-stacktrace-render (current-buffer) causes)
+      (goto-char (point-min))
       (insert error)
       (insert "\n")
       (insert "\n")
@@ -121,8 +125,6 @@
       (dgu-insert-restart-prompt nil "abort" "Rethrow the exception.")
       (insert "\n")
       (insert "----------------------\n")
-      (insert detail)
-      (insert "\n")
       (goto-char (point-min))
       (setq-local dgu-restart-request-id id)
       (setq-local dgu-restarts restarts))))
