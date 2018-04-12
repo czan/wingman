@@ -5,12 +5,14 @@
             [clojure.tools.nrepl.middleware.session :refer (session)]
             [clojure.tools.nrepl.middleware :refer (set-descriptor!)]
             [clojure.tools.nrepl.middleware.interruptible-eval :as e]
-            [clojure.pprint :refer [pprint]]
-            [cider.nrepl.middleware.stacktrace :refer [analyze-causes]]
-            [cider.nrepl.middleware.pprint :refer [wrap-pprint-fn]]))
+            [clojure.pprint :refer [pprint]]))
 
 (def awaiting-restarts (atom {}))
 (def awaiting-prompts (atom {}))
+
+(defn analyze-causes [ex pprint]
+  (when-let [f (ns-resolve 'cider.nrepl.middleware.stacktrace 'analyze-causes)]
+    (f ex pprint)))
 
 (defn prompt-for-restarts [ex restarts]
   (if (seq restarts)
@@ -186,8 +188,6 @@
                              (f)))))))
       {::original future-call})))
 
-(alter-var-root #'clojure.core/future-call handled-future-call)
-
 (defn handled-send-via [send-via]
   (let [send-via (or (::original (meta send-via))
                      send-via)]
@@ -226,8 +226,6 @@
           (run)))
       {::original send-via})))
 
-(alter-var-root #'clojure.core/send-via handled-send-via)
-
 (defn run-with-restart-stuff [h {:keys [op code eval] :as msg}]
   (h (if (and (= op "eval")
               (nil? eval))
@@ -249,21 +247,35 @@
       (t/send transport (response-for msg :status :error)))))
 
 (defn handle-restarts [h]
-  (fn [msg]
-    (case (:op msg)
-      "eval" (run-with-restart-stuff h msg)
-      "restart/choose" (choose-restart msg)
-      "restart/answer" (answer-prompt msg)
-      (h msg))))
+  (if (and (find-ns 'cider.nrepl.middleware.pprint)
+           (find-ns 'cider.nrepl.middleware.stacktrace))
+    (fn [msg]
+      (case (:op msg)
+        "eval" (run-with-restart-stuff h msg)
+        "restart/choose" (choose-restart msg)
+        "restart/answer" (answer-prompt msg)
+        (h msg)))
+    h))
 
-(set-descriptor! #'handle-restarts
-                 {:requires #{#'session #'wrap-pprint-fn}
-                  :expects #{"eval"}
-                  :handles {"restart/choose" {:doc "Select a restart"
-                                              :requires {"index" "The index of the reset to choose"}
-                                              :optional {}
-                                              :returns {}}
-                            "restart/answer" {:doc "Provide input to a restart prompt"
-                                              :requires {"input" "The input provided to the restart handler"}
-                                              :optional {}
-                                              :returns {}}}})
+(if (and (find-ns 'cider.nrepl.middleware.pprint)
+         (find-ns 'cider.nrepl.middleware.stacktrace))
+  (do (require 'cider.nrepl.middleware.pprint)
+      (require 'cider.nrepl.middleware.stacktrace)
+      (alter-var-root #'clojure.core/future-call handled-future-call)
+      (alter-var-root #'clojure.core/send-via handled-send-via)
+      (set-descriptor! #'handle-restarts
+                       {:requires #{#'session (ns-resolve 'cider.nrepl.middleware.pprint 'wrap-pprint-fn)}
+                        :expects #{"eval"}
+                        :handles {"restart/choose" {:doc "Select a restart"
+                                                    :requires {"index" "The index of the reset to choose"}
+                                                    :optional {}
+                                                    :returns {}}
+                                  "restart/answer" {:doc "Provide input to a restart prompt"
+                                                    :requires {"input" "The input provided to the restart handler"}
+                                                    :optional {}
+                                                    :returns {}}}}))
+  ;; if we can't find the namespaces, just give up!
+  (set-descriptor! #'handle-restarts
+                   {:requires #{}
+                    :expects #{}
+                    :handles {}}))
