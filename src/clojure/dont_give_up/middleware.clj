@@ -28,8 +28,7 @@
                                          (recur cause)
                                          (or (.getMessage ex)
                                              (.getSimpleName (.getClass ex)))))
-                              :causes (map #(response-for msg %)
-                                           (analyze-causes ex pprint))
+                              :causes (analyze-causes ex pprint)
                               :abort ((:describe (dgu/find-restart ::abort)) ex)
                               :restarts (mapv (fn [{:keys [name describe]}]
                                                 [(pr-str name) (describe ex)])
