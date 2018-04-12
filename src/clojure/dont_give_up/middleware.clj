@@ -4,7 +4,10 @@
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
             [clojure.tools.nrepl.middleware.session :refer (session)]
             [clojure.tools.nrepl.middleware :refer (set-descriptor!)]
-            [clojure.tools.nrepl.middleware.interruptible-eval :as e]))
+            [clojure.tools.nrepl.middleware.interruptible-eval :as e]
+            [clojure.pprint :refer [pprint]]
+            [cider.nrepl.middleware.stacktrace :refer [analyze-causes]]
+            [cider.nrepl.middleware.pprint :refer [wrap-pprint-fn]]))
 
 (def awaiting-restarts (atom {}))
 (def awaiting-prompts (atom {}))
@@ -20,17 +23,18 @@
                 (response-for msg
                               :id id
                               :type "restart/prompt"
-                              :error (str (-> ex .getClass .getSimpleName)
-                                          (if (empty? (.getMessage ex))
-                                            ""
-                                            (str ": " (.getMessage ex))))
+                              :error (loop [ex ex]
+                                       (if-let [cause (.getCause ex)]
+                                         (recur cause)
+                                         (or (.getMessage ex)
+                                             (.getSimpleName (.getClass ex)))))
                               :causes (map #(response-for msg %)
-                                           (cider.nrepl.middleware.stacktrace/analyze-causes ex pprint))
+                                           (analyze-causes ex pprint))
                               :detail (with-out-str
                                         (let [out (java.io.PrintWriter. *out*)]
                                           (.printStackTrace ex out)))
                               :restarts (mapv (fn [{:keys [name describe]}]
-                                                [name (describe ex)])
+                                                [(pr-str name) (describe ex)])
                                               restarts)))
         (loop []
           (let [idx (deref index 100 :timeout)]
@@ -263,7 +267,7 @@
       (h msg))))
 
 (set-descriptor! #'handle-restarts
-                 {:requires #{#'session}
+                 {:requires #{#'session #'wrap-pprint-fn}
                   :expects #{"eval"}
                   :handles {"restart/choose" {:doc "Select a restart"
                                               :requires {"index" "The index of the reset to choose"}

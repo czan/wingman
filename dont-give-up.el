@@ -102,18 +102,21 @@
                              mouse-face highlight
                              help-echo "mouse-2: use this restart")))
     (put-text-property (car prompt-bounds) (cdr prompt-bounds)
-                       'face 'cider-debug-prompt-face)))
+                       'face 'cider-debug-prompt-face)
+    (put-text-property (car name-bounds) (cdr name-bounds)
+                       'face 'cider-stacktrace-error-class-face)))
 
 (defun dgu-prompt-user (id error detail causes restarts)
   (with-current-buffer (cider-popup-buffer (generate-new-buffer-name "*dgu-prompt*") :select)
     ;; cider-stacktrace relies on this pointing to the right buffer,
     ;; so we just set it right away
-    (setq-local cider-error-buffer (current-buffer))
     (dgu-restart-prompt-mode)
-    (let ((inhibit-read-only t))
+    (setq-local cider-error-buffer (current-buffer))
+    (let ((inhibit-read-only t)
+          error-bounds)
       (cider-stacktrace-render (current-buffer) causes)
       (goto-char (point-min))
-      (insert error)
+      (setq error-bounds (dgu-insert-bounds error))
       (insert "\n")
       (insert "\n")
       (insert "The following restarts are available:\n")
@@ -126,6 +129,9 @@
       (insert "\n")
       (insert "----------------------\n")
       (goto-char (point-min))
+      (when error-bounds
+        (put-text-property (car error-bounds) (cdr error-bounds)
+                           'face 'cider-stacktrace-error-message-face))
       (setq-local dgu-restart-request-id id)
       (setq-local dgu-restarts restarts))))
 
