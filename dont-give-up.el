@@ -84,7 +84,6 @@
     (unless (equal description "")
       (insert " - ")
       (setq description-bounds (dgu-insert-bounds description)))
-    (insert "\n")
     (let ((map (make-sparse-keymap)))
       (if index
           (progn
@@ -104,7 +103,8 @@
     (put-text-property (car prompt-bounds) (cdr prompt-bounds)
                        'face 'cider-debug-prompt-face)
     (put-text-property (car name-bounds) (cdr name-bounds)
-                       'face 'cider-stacktrace-error-class-face)))
+                       'face 'cider-stacktrace-error-class-face)
+    (insert "\n")))
 
 (defun dgu-prompt-user (id error abort causes restarts)
   (with-current-buffer (cider-popup-buffer (generate-new-buffer-name "*dgu-prompt*") :select)
