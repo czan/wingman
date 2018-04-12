@@ -16,12 +16,15 @@
              ((:applicable? restart) ex))
            restarts))
 
+(defn find-restart [name]
+  (if (instance? Restart name)
+    name
+    (->> *restarts*
+         (filter #(= (:name %) name))
+         first)))
+
 (defn use-restart [name & args]
-  (let [restart (if (instance? Restart name)
-                  name
-                  (->> *restarts*
-                       (filter #(= (:name %) name))
-                       first))]
+  (let [restart (find-restart name)]
     (throw (if restart
              (UseRestart. restart args)
              (IllegalArgumentException. (str "No restart registered for " name))))))
@@ -53,6 +56,8 @@
                                  *handlers*)]
         (try
           (thunk)
+          (catch ThreadDeath t
+            (throw t))
           (catch UseRestart t
             (throw t))
           (catch HandlerResult t
@@ -69,6 +74,8 @@
     (binding [*restarts* (concat restarts *restarts*)]
       (try
         (thunk)
+        (catch ThreadDeath t
+            (throw t))
         (catch UseRestart t
           (throw t))
         (catch HandlerResult t

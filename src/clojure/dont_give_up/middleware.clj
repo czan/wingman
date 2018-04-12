@@ -30,12 +30,11 @@
                                              (.getSimpleName (.getClass ex)))))
                               :causes (map #(response-for msg %)
                                            (analyze-causes ex pprint))
-                              :detail (with-out-str
-                                        (let [out (java.io.PrintWriter. *out*)]
-                                          (.printStackTrace ex out)))
+                              :abort ((:describe (dgu/find-restart ::abort)) ex)
                               :restarts (mapv (fn [{:keys [name describe]}]
                                                 [(pr-str name) (describe ex)])
-                                              restarts)))
+                                              (remove #(= (:name %) ::abort)
+                                                      restarts))))
         (loop []
           (let [idx (deref index 100 :timeout)]
             (cond
@@ -69,11 +68,11 @@
 
 (defmacro with-interactive-handler [& body]
   `(with-handlers [(Throwable ex#
-                     (let [restart# (prompt-for-restarts ex# dgu/*restarts*)]
-                       (if restart#
-                         (apply dgu/use-restart restart#
-                                ((:make-arguments restart#) ex#))
-                         (throw ex#))))]
+                     (if-let [restart# (or (prompt-for-restarts ex# dgu/*restarts*)
+                                           (dgu/find-restart ::abort))]
+                       (apply dgu/use-restart restart#
+                              ((:make-arguments restart#) ex#))
+                       (throw ex#)))]
      ~@body))
 
 (defn unbound-var-exception? [ex]
@@ -163,7 +162,10 @@
                                :describe #(str "Create the `" (pr-str (extract-ns-name %)) "` namespace and retry the evaluation.")
                                :arguments #(list (extract-ns-name %))
                                (create-ns ns#)
-                               (run#))]
+                               (run#))
+                             (::abort []
+                               :describe "Abort this evaluation."
+                               (throw (ThreadDeath.)))]
                ~@body))]
      (run#)))
 

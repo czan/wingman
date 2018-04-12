@@ -17,10 +17,10 @@
   (nrepl-dbind-response response (id type)
     (cond
      ((equal type "restart/prompt")
-      (nrepl-dbind-response response (error detail restarts causes)
+      (nrepl-dbind-response response (error abort restarts causes)
         (when restarts
           (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
-          (dgu-prompt-user id error detail causes restarts))))
+          (dgu-prompt-user id error abort causes restarts))))
      ((equal type "restart/ask")
       (nrepl-dbind-response response (prompt)
         (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
@@ -106,7 +106,7 @@
     (put-text-property (car name-bounds) (cdr name-bounds)
                        'face 'cider-stacktrace-error-class-face)))
 
-(defun dgu-prompt-user (id error detail causes restarts)
+(defun dgu-prompt-user (id error abort causes restarts)
   (with-current-buffer (cider-popup-buffer (generate-new-buffer-name "*dgu-prompt*") :select)
     ;; cider-stacktrace relies on this pointing to the right buffer,
     ;; so we just set it right away
@@ -125,7 +125,7 @@
                   (dgu-insert-restart-prompt index (car restart) (cadr restart))
                   (setq index (1+ index)))
                 restarts))
-      (dgu-insert-restart-prompt nil "abort" "Rethrow the exception.")
+      (dgu-insert-restart-prompt nil "abort" (or abort "Rethrow the exception."))
       (insert "\n")
       (insert "----------------------\n")
       (goto-char (point-min))
