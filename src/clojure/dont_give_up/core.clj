@@ -146,12 +146,37 @@
   For example, a simple restart to use a provided value would look
   like this:
 
-    (with-restarts [(:use-value [value] value)]
-      (/ 1 0))
+      (with-restarts [(:use-value [value] value)]
+        (/ 1 0))
 
   This would allow a handler to invoke `(use-restart :use-value 10)`
   to recover from this exception, and to return `10` as the result of
   the `with-restarts` form.
+
+  In addition, restarts can have three extra attributes defined:
+
+  1. `:applicable?` specifies a predicate which tests whether this
+  restart is applicable to this exception type. It defaults
+  to `(constantly true)`, under the assumption that restarts are
+  always applicable.
+
+  2. `:describe` specifies a function which will convert the exception
+  into an explanation of what this restart will do. As a shortcut, you
+  may use a string literal instead, which will be converted into a
+  function returning that string. It defaults to `(constantly \"\")`.
+
+  3. `:arguments` specifies a function which will return arguments for
+  this restart. This function is only ever used interactively, and
+  thus should prompt the user for any necessary information to invoke
+  this restart. It defaults to `(constantly nil)`.
+
+  Here is an example of the above restart using these attributes:
+
+      (with-restarts [(:use-value [value]
+                         :describe \"Provide a value to use.\"
+                         :arguments #'read-unevaluated-value
+                         value)]
+        (/ 1 0))
 
   Restarts are invoked in the same dynamic context in which they were
   defined. The stack is unwound to the level of the `with-restarts`
@@ -214,9 +239,9 @@
   For example, here is how to use `with-handlers` to replace
   try/catch::
 
-    (with-handlers [(Exception ex (.getMessage ex))]
-      (/ 1 0))
-    ;; => \"Divide by zero\"
+      (with-handlers [(Exception ex (.getMessage ex))]
+        (/ 1 0))
+      ;; => \"Divide by zero\"
 
   Similarly to try/catch, multiple handlers can be defined for
   different exception types, and the first matching handler will be
