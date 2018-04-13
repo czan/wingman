@@ -64,7 +64,7 @@ The method of binding dynamic variables for error handling is roughly equivalent
 
 ## What about Exceptions?
 
-Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most past this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have no effect on a program unless it opts-in to using them by installing handlers.
+Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most past this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have no effect on a program unless that program opts-in to using them by installing handlers.
 
 There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from Throwable, so as long as you don't catch Throwable you should be fine. If you do catch Throwable, please ensure that `dont_give_up.UseRestart` and `dont_give_up.HandlerResult` are re-thrown.
 
@@ -92,6 +92,73 @@ There is the potential for a library/application to break `dont-give-up` by catc
                   (use-restart :use-denominator 100))]
   (div 3 0)) ;; => 3/100
 ```
+
+## Writing restarts
+
+Restarts allow a piece of code to specify reasonable strategies to deal with errors that occur within them. They may allow you to simply use a specified value, or they may allow you to do complex actions like restart an agent, or reconnect a socket.
+
+As an example, a simple restart to use a provided value would look like this:
+
+```clojure
+(with-restarts [(:use-value [value] value)]
+  (/ 1 0))
+```
+
+This would allow a handler to invoke `(use-restart :use-value 10)` to recover from this exception, and to return `10` as the result of the `with-restarts` form.
+
+In addition, restarts can have three extra attributes defined:
+
+1. `:applicable?` specifies a predicate which tests whether this restart is applicable to this exception type. It defaults to `(constantly true)`, under the assumption that restarts are always applicable.
+
+2. `:describe` specifies a function which will convert the exception into an explanation of what this restart will do. As a shortcut, you may use a string literal instead, which will be converted into a function returning that string. It defaults to `(constantly \"\")`.
+
+3. `:arguments` specifies a function which will return arguments for this restart. This function is only ever used interactively, and thus should prompt the user for any necessary information to invoke this restart. It defaults to `(constantly nil)`.
+
+Here is an example of the above restart using these attributes:
+
+```clojure
+(with-restarts [(:use-value [value]
+                   :describe \"Provide a value to use.\"
+                   :arguments #'read-unevaluated-value
+                   value)]
+  (/ 1 0))
+```
+
+Restarts are invoked in the same dynamic context in which they were defined. The stack is unwound to the level of the `with-restarts` form, and the restart is invoked.
+
+Multiple restarts with the same name can be defined, but the \"closest\" one will be invoked by a call to `use-restart`.
+
+Restart names can be any value that is not an instance of `dont-give-up.core.Restart`, but it is recommended to use keywords as names.
+
+## Writing handlers
+
+Handlers are conceptually similar to try/catch, but they are invoked without unwinding the stack. This gives them greater scope to make decisions about how to recover from errors. Ultimately, though, they can only recover in ways that have registered restarts.
+
+For example, here is how to use `with-handlers` to replace try/catch:
+
+```clojure
+(with-handlers [(Exception ex (.getMessage ex))]
+  (/ 1 0))
+;; => \"Divide by zero\"
+```
+
+Similarly to try/catch, multiple handlers can be defined for different exception types, and the first matching handler will be run to handle the exception.
+
+Handlers can have only one of four outcomes:
+
+1. invoke `use-restart`, which will restart execution from the specified restart
+
+2. invoke `rethrow`, which will defer to a handler higher up the call-stack, or `throw` if this is the highest handler
+
+3. return a value, which will be the value returned from the `with-handler-fn` form
+
+4. throw an exception, which will be thrown as the result of the `with-handler-fn` form
+
+Conceptually, options `1` and `2` process the error without unwinding the stack, and options `3` and `4` unwind the stack up until the handler.
+
+If `handler` is invoked, the dynamic var context will be set to be as similar as possible to the dynamic context when `with-hander-fn` is called. This simulates the fact that the handler conceptually executes at a point much further up the call stack.
+
+Any dynamic state captured in things other than vars (e.g. `ThreadLocal`s, open files, mutexes) will be in the state of the `with-restarts` execution nearest to the thrown exception.
 
 ## License
 
