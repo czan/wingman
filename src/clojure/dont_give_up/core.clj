@@ -237,7 +237,7 @@
   raised during `body`'s execution.
 
   For example, here is how to use `with-handlers` to replace
-  try/catch::
+  try/catch:
 
       (with-handlers [(Exception ex (.getMessage ex))]
         (/ 1 0))
