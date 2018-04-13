@@ -110,7 +110,7 @@ In addition, restarts can have three extra attributes defined:
 
 1. `:applicable?` specifies a predicate which tests whether this restart is applicable to this exception type. It defaults to `(constantly true)`, under the assumption that restarts are always applicable.
 
-2. `:describe` specifies a function which will convert the exception into an explanation of what this restart will do. As a shortcut, you may use a string literal instead, which will be converted into a function returning that string. It defaults to `(constantly \"\")`.
+2. `:describe` specifies a function which will convert the exception into an explanation of what this restart will do. As a shortcut, you may use a string literal instead, which will be converted into a function returning that string. It defaults to `(constantly "")`.
 
 3. `:arguments` specifies a function which will return arguments for this restart. This function is only ever used interactively, and thus should prompt the user for any necessary information to invoke this restart. It defaults to `(constantly nil)`.
 
@@ -118,7 +118,7 @@ Here is an example of the above restart using these attributes:
 
 ```clojure
 (with-restarts [(:use-value [value]
-                   :describe \"Provide a value to use.\"
+                   :describe "Provide a value to use."
                    :arguments #'read-unevaluated-value
                    value)]
   (/ 1 0))
@@ -126,7 +126,7 @@ Here is an example of the above restart using these attributes:
 
 Restarts are invoked in the same dynamic context in which they were defined. The stack is unwound to the level of the `with-restarts` form, and the restart is invoked.
 
-Multiple restarts with the same name can be defined, but the \"closest\" one will be invoked by a call to `use-restart`.
+Multiple restarts with the same name can be defined, but the "closest" one will be invoked by a call to `use-restart`.
 
 Restart names can be any value that is not an instance of `dont-give-up.core.Restart`, but it is recommended to use keywords as names.
 
@@ -139,7 +139,7 @@ For example, here is how to use `with-handlers` to replace try/catch:
 ```clojure
 (with-handlers [(Exception ex (.getMessage ex))]
   (/ 1 0))
-;; => \"Divide by zero\"
+;; => "Divide by zero"
 ```
 
 Similarly to try/catch, multiple handlers can be defined for different exception types, and the first matching handler will be run to handle the exception.
