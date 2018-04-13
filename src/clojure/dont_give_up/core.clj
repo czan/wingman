@@ -31,6 +31,12 @@
     (filter #(= % restart) *restarts*)
     (filter #(= (:name %) restart) *restarts*)))
 
+(defn find-restart
+  "Return the first dynamically-bound restart with the provided name.
+  If passed an instance of `Restart`, search by equality."
+  [restart]
+  (first (find-restarts restart)))
+
 (defn use-restart
   "Use the provided restart, with the given arguments. The restart
   provided can be a name, in which case it will be looked up and the
@@ -39,7 +45,7 @@
 
   Always throws an exception, will never return normally."
   [restart & args]
-  (let [restart-instance (first (find-restart restart))]
+  (let [restart-instance (find-restart restart)]
     (throw (if restart-instance
              (UseRestart. restart-instance args)
              (IllegalArgumentException. (str "No restart registered for " restart))))))

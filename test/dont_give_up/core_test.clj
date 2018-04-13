@@ -47,7 +47,7 @@
                (throw (RuntimeException.)))))))
   (is (= 10
          (with-handlers [(Exception ex (use-restart :use-value 10))]
-           (with-handlers [(ArithmeticException ex (signal ex))]
+           (with-handlers [(ArithmeticException ex (rethrow ex))]
              (with-restarts [(:use-value [value] value)]
                (throw (ArithmeticException.))))))))
 
