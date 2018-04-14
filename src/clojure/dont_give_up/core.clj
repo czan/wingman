@@ -63,29 +63,31 @@
 (defn- thrown-value [id value]
   (throw (HandlerResult. id #(throw value))))
 
+(defn- wrapped-handler [id handler]
+  (let [definition-frame (clojure.lang.Var/getThreadBindingFrame)]
+    (fn [ex]
+      (let [restarts (or *restarts*
+                         (vec (mapcat #(% ex) *make-restarts*)))
+            execution-frame (clojure.lang.Var/getThreadBindingFrame)]
+        (try (clojure.lang.Var/resetThreadBindingFrame definition-frame)
+             (binding [*restarts* restarts]
+               (handled-value id (handler ex)))
+             (catch UseRestart t
+               (throw t))
+             (catch HandlerResult t
+               (throw t))
+             (catch Throwable t
+               (thrown-value id t))
+             (finally
+               (clojure.lang.Var/resetThreadBindingFrame execution-frame)))))))
+
 (defn with-handler-fn
   "Run `thunk`, using `handler` to handle any exceptions raised.
   Prefer to use `with-handlers` instead of this function. "
   [thunk handler]
-  (let [id (gensym "handle-id")
-        definition-frame (clojure.lang.Var/getThreadBindingFrame)]
+  (let [id (gensym "handler-id")]
     (try
-      (binding [*handlers* (cons (fn [ex]
-                                   (let [restarts (or *restarts*
-                                                      (vec (mapcat #(% ex) *make-restarts*)))
-                                         execution-frame (clojure.lang.Var/getThreadBindingFrame)]
-                                     (try (clojure.lang.Var/resetThreadBindingFrame definition-frame)
-                                          (binding [*restarts* restarts]
-                                            (handled-value id (handler ex)))
-                                          (catch UseRestart t
-                                            (throw t))
-                                          (catch HandlerResult t
-                                            (throw t))
-                                          (catch Throwable t
-                                            (thrown-value id t))
-                                          (finally
-                                            (clojure.lang.Var/resetThreadBindingFrame execution-frame)))))
-                                 *handlers*)]
+      (binding [*handlers* (cons (wrapped-handler id handler) *handlers*)]
         (try
           (thunk)
           (catch ThreadDeath t
