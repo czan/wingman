@@ -16,13 +16,18 @@
 
 (defrecord Restart [name description make-arguments behaviour])
 
-(defn make-restart [name description make-arguments behaviour]
+(defn make-restart
+  "Create an instance of `Restart`. When using the `with-restarts`
+  macro it's unnecessary to use this function. It is only necessary
+  when using `call-with-restarts` to create restarts."
+  [name description make-arguments behaviour]
   (->Restart name description make-arguments behaviour))
 
 (defn rethrow
-  "Rethrow an exception, within the restart machinery. This will
-  invoke the nearest handler to handle the error. If no handlers are
-  available, this is equivalent to `throw`."
+  "Rethrow an exception, without unwinding the stack any further. This
+  will invoke the nearest handler to handle the error. If no handlers
+  are available then this is equivalent to `throw`, and the stack will
+  be unwinded."
   [ex]
   (if (seq *handlers*)
     ((first *handlers*) ex)
@@ -116,7 +121,40 @@
   the list of current restarts. If an exception is thrown, then
   `make-restarts` will be invoked, and must return a list of restarts
   applicable to this exception. If no exception is thrown, then
-  `make-restarts` will not be invoked."
+  `make-restarts` will not be invoked.
+
+  For example:
+
+      (call-with-restarts
+        (fn [ex] [(make-restart :use-value
+                                \"Use this value\"
+                                #(read-form ex)
+                                identity)])
+        (fn ^:once []
+          (/ 1 0)))
+
+  You should usually use the `with-restarts` macro, but if you need to
+  dynamically vary your restarts depending on the type of exception
+  that is thrown, `call-with-restarts` will let you register restarts
+  only after the exception has been thrown. Generally you should use
+  the `:applicable?` property of the `with-restarts` macro, but using
+  `call-with-restarts` lets you do things like this:
+
+      (defn resolve [symbol]
+        (call-with-restarts
+          (fn [ex]
+            (for [namespace (all-ns)
+                  :when (ns-resolve namespace symbol)]
+              (make-restart (keyword (str \"use-\" namespace))
+                            (str \"Resolve value from \" namespace)
+                            (constantly nil)
+                            #(ns-resolve namespace symbol))))
+          (fn ^:once []
+            (resolve symbol))))
+
+  Which provides a restart for each namespace that has a var with the
+  correct name."
+  {:style/indent [1]}
   [make-restarts thunk]
   (let [id (gensym "restart-id")]
     (try
@@ -180,18 +218,17 @@
 
   1. `:applicable?` specifies a predicate which tests whether this
   restart is applicable to this exception type. It defaults
-  to `(constantly true)`, under the assumption that restarts are
-  always applicable.
+  to `(fn [ex] true)`.
 
   2. `:describe` specifies a function which will convert the exception
   into an explanation of what this restart will do. As a shortcut, you
   may use a string literal instead, which will be converted into a
-  function returning that string. It defaults to `(constantly \"\")`.
+  function returning that string. It defaults to `(fn [ex] \"\")`.
 
   3. `:arguments` specifies a function which will return arguments for
   this restart. This function is only ever used interactively, and
   thus should prompt the user for any necessary information to invoke
-  this restart. It defaults to `(constantly nil)`.
+  this restart. It defaults to `(fn [ex] nil)`.
 
   Here is an example of the above restart using these attributes:
 
@@ -278,8 +315,9 @@
   1. invoke `use-restart`, which will restart execution from the
   specified restart
 
-  2. invoke `rethrow`, which will defer to a handler higher up the
-  call-stack, or `throw` if this is the highest handler
+  2. invoke `rethrow`, which will either defer to a handler higher up
+  the call-stack, or propagate the exception via standard JVM
+  mechanisms.
 
   3. return a value, which will be the value returned from the
   `with-handler-fn` form
