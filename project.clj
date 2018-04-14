@@ -3,8 +3,6 @@
   :url "https://github.com/czan/dont-give-up"
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/tools.nrepl "0.2.12"]]
+  :dependencies [[org.clojure/clojure "1.8.0"]]
   :source-paths ["src/clojure"]
-  :java-source-paths ["src/java"]
-  :repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]})
+  :java-source-paths ["src/java"])

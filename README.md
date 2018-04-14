@@ -8,11 +8,11 @@ Restarts can be used in code, as shown below, or they can be used interactively.
 
 `dont-give-up` has been designed to be as unobtrusive as possible. You can add it to your `~/.lein/profiles.clj` file to get the benefit of interactive restarts in CIDER without affecting anything else.
 
-To use interactive restarts with CIDER, load `dont-give-up.el` from this repo in Emacs, and install the `dont-give-up.middleware/handle-restarts` middleware. You can do this by adding it to `~/.lein/profiles.clj`, like this:
+To use interactive restarts with CIDER, load `dont-give-up.el` from this repo in Emacs, and install the `dont-give-up.nrepl/handle-restarts` middleware. You can do this by adding it to `~/.lein/profiles.clj`, like this:
 
 ```clojure
-{:user {:dependencies [[org.clojars.czan/dont-give-up "0.1.0-SNAPSHOT"]]
-        :repl-options {:nrepl-middleware [dont-give-up.middleware/handle-restarts]}}}
+{:user {:dependencies [[org.clojars.czan/dont-give-up.nrepl "0.1.0-SNAPSHOT"]]
+        :repl-options {:nrepl-middleware [dont-give-up.nrepl/handle-restarts]}}}
 ```
 
 ## Example
@@ -66,7 +66,7 @@ The method of binding dynamic variables for error handling is roughly equivalent
 
 Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most past this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have no effect on a program unless that program opts-in to using them by installing handlers.
 
-There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from Throwable, so as long as you don't catch Throwable you should be fine. If you do catch Throwable, please ensure that `dont_give_up.UseRestart` and `dont_give_up.HandlerResult` are re-thrown.
+There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from Throwable, so as long as you don't catch Throwable you should be fine. If you do catch Throwable, please ensure that `dont_give_up.core.UseRestart` and `dont_give_up.core.HandlerResult` are re-thrown.
 
 ## Usage (code)
 
