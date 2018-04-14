@@ -31,11 +31,10 @@
                                          (or (.getMessage ex)
                                              (.getSimpleName (.getClass ex)))))
                               :causes (analyze-causes ex pprint)
-                              :abort (if-let [f (:describe (dgu/find-restart ::abort))]
-                                       (f ex)
-                                       "Rethrow the exception.")
-                              :restarts (mapv (fn [{:keys [name describe]}]
-                                                [(pr-str name) (describe ex)])
+                              :abort (or (:description (dgu/find-restart ::abort))
+                                         "Rethrow the exception.")
+                              :restarts (mapv (fn [{:keys [name description]}]
+                                                [(pr-str name) description])
                                               (remove #(= (:name %) ::abort)
                                                       restarts))))
         (loop []
@@ -75,7 +74,7 @@
                        (if-let [restart# (or (prompt-for-restarts ex# (dgu/list-restarts))
                                              (dgu/find-restart ::abort))]
                          (apply dgu/use-restart restart#
-                                ((:make-arguments restart#) ex#))
+                                ((:make-arguments restart#)))
                          (throw ex#)))]
        ~@body)))
 

@@ -14,7 +14,7 @@
 (defmacro with-cleared-restarts [& body]
   `(call-with-cleared-restarts (fn [] ~@body)))
 
-(defrecord Restart [name describe applicable? make-arguments behaviour])
+(defrecord Restart [name description make-arguments behaviour])
 
 (defn rethrow
   "Rethrow an exception, within the restart machinery. This will
@@ -104,25 +104,27 @@
 (defn with-restarts-fn
   "Register restarts which can be invoked from handlers. Prefer to use
   `with-restarts` instead of this function."
-  [thunk restarts]
-  (try
-    (binding [*make-restarts* (cons (fn [ex]
-                                      (filter #((:applicable? %) ex) restarts))
-                                    *make-restarts*)]
-      (try
-        (thunk)
-        (catch ThreadDeath t
-          (throw t))
-        (catch UseRestart t
-          (throw t))
-        (catch HandlerResult t
-          (throw t))
-        (catch Throwable t
-          (rethrow t))))
-    (catch UseRestart t
-      (if (some #(= % (.-restart t)) restarts)
-        (apply (:behaviour (.-restart t)) (.-args t))
-        (throw t)))))
+  [thunk make-restarts]
+  (let [id (gensym "id")]
+    (try
+      (binding [*make-restarts* (cons (fn [ex]
+                                        (map #(assoc % :id id)
+                                             (make-restarts ex)))
+                                      *make-restarts*)]
+        (try
+          (thunk)
+          (catch ThreadDeath t
+            (throw t))
+          (catch UseRestart t
+            (throw t))
+          (catch HandlerResult t
+            (throw t))
+          (catch Throwable t
+            (rethrow t))))
+      (catch UseRestart t
+        (if (= (:id (.-restart t)) id)
+          (apply (:behaviour (.-restart t)) (.-args t))
+          (throw t))))))
 
 (defn- prompt-with-stdin [prompt]
   (print prompt)
@@ -206,47 +208,50 @@
   as names."
   {:style/indent [1 [[:defn]] :form]}
   [restarts & body]
-  `(with-restarts-fn
-     (fn ^:once [] ~@body)
-     (lazy-seq
-      ~(mapv (fn [restart]
-               (if (symbol? restart)
-                 restart
-                 (let [[name args & body] restart]
-                   (loop [body body
-                          describe `(constantly "")
-                          applicable? `(constantly true)
-                          make-arguments `(constantly nil)]
-                     (cond
-                       (= (first body) :describe)
-                       (recur (nnext body)
-                              (second body)
-                              applicable?
-                              make-arguments)
+  (let [ex (gensym "ex")]
+    `(with-restarts-fn
+       (fn ^:once [] ~@body)
+       (fn [~ex]
+         (remove nil?
+                 ~(mapv (fn [restart]
+                          (if (symbol? restart)
+                            restart
+                            (let [[name args & body] restart]
+                              (loop [body body
+                                     describe `(constantly "")
+                                     applicable? `(constantly true)
+                                     make-arguments `(constantly nil)]
+                                (cond
+                                  (= (first body) :describe)
+                                  (recur (nnext body)
+                                         (second body)
+                                         applicable?
+                                         make-arguments)
 
-                       (= (first body) :applicable?)
-                       (recur (nnext body)
-                              describe
-                              (second body)
-                              make-arguments)
+                                  (= (first body) :applicable?)
+                                  (recur (nnext body)
+                                         describe
+                                         (second body)
+                                         make-arguments)
 
-                       (= (first body) :arguments)
-                       (recur (nnext body)
-                              describe
-                              applicable?
-                              (second body))
+                                  (= (first body) :arguments)
+                                  (recur (nnext body)
+                                         describe
+                                         applicable?
+                                         (second body))
 
-                       :else
-                       `(->Restart ~name
-                                   (let [d# ~describe]
-                                     (if (string? d#)
-                                       (constantly d#)
-                                       d#))
-                                   ~applicable?
-                                   ~make-arguments
-                                   (fn ~(vec args)
-                                     ~@body)))))))
-             restarts))))
+                                  :else
+                                  `(when (~applicable? ~ex)
+                                     (->Restart ~name
+                                                (let [d# ~describe]
+                                                  (if (string? d#)
+                                                    d#
+                                                    (d# ~ex)))
+                                                (fn []
+                                                  (~make-arguments ~ex))
+                                                (fn ~(vec args)
+                                                  ~@body))))))))
+                        restarts))))))
 
 (defmacro with-handlers
   "Run `body`, using `handlers` to handle any exceptions which are
