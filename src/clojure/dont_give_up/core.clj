@@ -14,7 +14,7 @@
 (defmacro with-cleared-restarts [& body]
   `(call-with-cleared-restarts (fn [] ~@body)))
 
-(defrecord ^:private Restart [name description make-arguments behaviour])
+(defrecord Restart [name description make-arguments behaviour])
 
 (defn make-restart [name description make-arguments behaviour]
   (->Restart name description make-arguments behaviour))
