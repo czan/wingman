@@ -198,7 +198,7 @@
                            (f))))))
       {::original future-call})))
 
-(defn wrapped-agent-fn [f]
+(defn handled-agent-fn [f]
   (fn [state & args]
     (with-interactive-handler
       (with-retry-restart "Retry the agent action from the start."
@@ -237,7 +237,7 @@
                     (apply send-via
                            executor
                            agent
-                           (wrapped-agent-fn f)
+                           (handled-agent-fn f)
                            args)))]
           (run)))
       {::original send-via})))
