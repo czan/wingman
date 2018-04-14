@@ -104,8 +104,11 @@
           (throw t))))))
 
 (defn with-restarts-fn
-  "Register restarts which can be invoked from handlers. Prefer to use
-  `with-restarts` instead of this function."
+  "Run `thunk` within a dynamic extent in which `make-restarts` adds
+  to the list of current restarts. If an exception is thrown, then
+  `make-restarts` will be invoked, and must return a list of restarts
+  applicable to this exception. If no exception is thrown, then
+  `make-restarts` will not be invoked."
   [thunk make-restarts]
   (let [id (gensym "id")]
     (try
