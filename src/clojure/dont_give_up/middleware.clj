@@ -129,7 +129,10 @@
                         (run)))
         (make-restart :refer-and-retry
                       (str "Provide a namespace to refer " (pr-str var) " from and retry the evaluation.")
-                      #(dgu/read-form ex)
+                      #(list (read-string (dgu/prompt-user "Provide a namespace name: "
+                                                           (for [namespace (all-ns)
+                                                                 :when (ns-resolve namespace (symbol (name var)))]
+                                                             (str (ns-name namespace))))))
                       (fn [ns]
                         (when-not (find-ns ns)
                           (require ns))
