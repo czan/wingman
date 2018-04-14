@@ -177,10 +177,13 @@
           (apply (:behaviour (.-restart t)) (.-args t))
           (throw t))))))
 
-(defn ^:dynamic prompt-user [prompt]
-  (print prompt)
-  (flush)
-  (read-line))
+(defn ^:dynamic prompt-user
+  ([prompt]
+   (prompt-user prompt nil))
+  ([prompt options]
+   (print prompt)
+   (flush)
+   (read-line)))
 
 (def ^:dynamic eval* clojure.core/eval)
 

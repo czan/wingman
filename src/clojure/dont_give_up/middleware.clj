@@ -47,26 +47,30 @@
           (swap! awaiting-restarts dissoc id))))
     nil))
 
-(defn prompt-for-input [prompt]
-  (let [timeout (Object.)
-        input (promise)
-        id (uuid)
-        {:keys [transport session] :as msg} e/*msg*]
-    (swap! awaiting-prompts assoc id input)
-    (try
-      (t/send transport
-              (response-for msg
-                            :id id
-                            :type "restart/ask"
-                            :prompt prompt))
-      (loop []
-        (let [value (deref input 100 timeout)]
-          (cond
-            (Thread/interrupted) (throw (InterruptedException.))
-            (= value timeout) (recur)
-            :else value)))
-      (finally
-        (swap! awaiting-prompts dissoc id)))))
+(defn prompt-for-input
+  ([prompt]
+   (prompt-for-input prompt nil))
+  ([prompt options]
+   (let [timeout (Object.)
+         input (promise)
+         id (uuid)
+         {:keys [transport session] :as msg} e/*msg*]
+     (swap! awaiting-prompts assoc id input)
+     (try
+       (t/send transport
+               (response-for msg
+                             :id id
+                             :type "restart/ask"
+                             :prompt prompt
+                             :options options))
+       (loop []
+         (let [value (deref input 100 timeout)]
+           (cond
+             (Thread/interrupted) (throw (InterruptedException.))
+             (= value timeout) (recur)
+             :else value)))
+       (finally
+         (swap! awaiting-prompts dissoc id))))))
 
 (defmacro with-interactive-handler [& body]
   `(dgu/with-cleared-restarts
