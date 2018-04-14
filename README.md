@@ -44,7 +44,7 @@ You are being asked how to continue. As the message explains, you have four opti
 
 2. Retry the evaluation again, but after defining `x`. If you choose this option you will be prompted for a value to use. `x` will then be defined in the current namespace to the value you provided, and the evaluation will be run again.
 
-3. Retry the evaluation again, but after referring the var from another namespace. If you choose this option you will be prompted for a namespace to refer. `x` will then be defined as if you had run `(require `[~provided-ns :refer [x]])`.
+3. Retry the evaluation again, but after referring the var from another namespace. If you choose this option you will be prompted for a namespace to refer. `x` will then be defined as if you had run ```(require `[~provided-ns :refer [x]])```.
 
 4. Abort. Just give up, and stop.
 
