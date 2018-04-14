@@ -3,10 +3,7 @@
             [dont-give-up.core :refer :all]))
 
 (use-fixtures :once (fn [f]
-                      (binding [*handlers* []
-                                *restarts* []]
-                        ;; clear things so the REPL binding doesn't
-                        ;; make everything fail
+                      (with-cleared-restarts
                         (f))))
 
 (deftest handlers-should-use-the-first-matching-clause

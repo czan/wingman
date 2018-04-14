@@ -70,13 +70,14 @@
         (swap! awaiting-prompts dissoc id)))))
 
 (defmacro with-interactive-handler [& body]
-  `(with-handlers [(Throwable ex#
-                     (if-let [restart# (or (prompt-for-restarts ex# dgu/*restarts*)
-                                           (dgu/find-restart ::abort))]
-                       (apply dgu/use-restart restart#
-                              ((:make-arguments restart#) ex#))
-                       (throw ex#)))]
-     ~@body))
+  `(dgu/with-cleared-restarts
+     (with-handlers [(Throwable ex#
+                       (if-let [restart# (or (prompt-for-restarts ex# (dgu/list-restarts))
+                                             (dgu/find-restart ::abort))]
+                         (apply dgu/use-restart restart#
+                                ((:make-arguments restart#) ex#))
+                         (throw ex#)))]
+       ~@body)))
 
 (defn unbound-var-exception? [ex]
   (and (instance? clojure.lang.Compiler$CompilerException ex)
@@ -173,10 +174,9 @@
      (run#)))
 
 (defn handled-eval [form]
-  (binding [dgu/*restarts* []]
-    (with-interactive-handler
-      (with-retry-restart "Retry the REPL evaluation."
-        (clojure.core/eval form)))))
+  (with-interactive-handler
+    (with-retry-restart "Retry the REPL evaluation."
+      (clojure.core/eval form))))
 
 (defn handled-future-call [future-call]
   (let [future-call (or (::original (meta future-call))
@@ -184,10 +184,9 @@
     (with-meta
       (fn [f]
         (future-call (fn []
-                       (binding [dgu/*restarts* []]
-                         (with-interactive-handler
-                           (with-retry-restart "Retry the future evaluation from the start."
-                             (f)))))))
+                       (with-interactive-handler
+                         (with-retry-restart "Retry the future evaluation from the start."
+                           (f))))))
       {::original future-call})))
 
 (defn handled-send-via [send-via]
@@ -213,23 +212,22 @@
                            executor
                            agent
                            (fn [state & args]
-                             (binding [dgu/*restarts* []]
-                               (with-interactive-handler
-                                 (with-retry-restart "Retry the agent action from the start."
-                                   (letfn [(run [state args]
-                                             (with-restarts [(:ignore []
-                                                               :describe "Ignore this action and leave the agent's state unchanged."
-                                                               state)
-                                                             (:ignore-and-replace [state]
-                                                               :describe "Ignore this action and provide a new state for the agent."
-                                                               :arguments #'dgu/read-unevaluated-value
-                                                               state)
-                                                             (:replace-and-retry [state]
-                                                               :describe "Provide a new state for the agent, then retry the action."
-                                                               :arguments #'dgu/read-unevaluated-value
-                                                               (run state args))]
-                                               (apply f state args)))]
-                                     (run state args))))))
+                             (with-interactive-handler
+                               (with-retry-restart "Retry the agent action from the start."
+                                 (letfn [(run [state args]
+                                           (with-restarts [(:ignore []
+                                                             :describe "Ignore this action and leave the agent's state unchanged."
+                                                             state)
+                                                           (:ignore-and-replace [state]
+                                                             :describe "Ignore this action and provide a new state for the agent."
+                                                             :arguments #'dgu/read-unevaluated-value
+                                                             state)
+                                                           (:replace-and-retry [state]
+                                                             :describe "Provide a new state for the agent, then retry the action."
+                                                             :arguments #'dgu/read-unevaluated-value
+                                                             (run state args))]
+                                             (apply f state args)))]
+                                   (run state args)))))
                            args)))]
           (run)))
       {::original send-via})))

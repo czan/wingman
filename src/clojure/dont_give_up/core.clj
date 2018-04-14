@@ -1,8 +1,18 @@
 (ns dont-give-up.core
   (:import [dont_give_up UseRestart HandlerResult]))
 
-(def ^:dynamic *handlers* [])
-(def ^:dynamic *restarts* [])
+(def ^:private ^:dynamic *handlers* nil)
+(def ^:private ^:dynamic *make-restarts* nil)
+(def ^:private ^:dynamic *restarts* nil)
+
+(defn call-with-cleared-restarts [thunk]
+  (binding [*handlers* nil
+            *make-restarts* nil
+            *restarts* nil]
+    (thunk)))
+
+(defmacro with-cleared-restarts [& body]
+  `(call-with-cleared-restarts (fn [] ~@body)))
 
 (defrecord Restart [name describe applicable? make-arguments behaviour])
 
@@ -15,13 +25,10 @@
     ((first *handlers*) ex)
     (throw ex)))
 
-(defn- applicable-restarts
-  "Filter a seq of restarts, and return the ones applicable to the
-  given exception as a vector."
-  [restarts ex]
-  (filterv (fn [restart]
-             ((:applicable? restart) ex))
-           restarts))
+(defn list-restarts
+  "Return a list of all dynamically-bound restarts."
+  []
+  *restarts*)
 
 (defn find-restarts
   "Return a list of all dynamically-bound restarts with the provided
@@ -64,7 +71,8 @@
         definition-frame (clojure.lang.Var/getThreadBindingFrame)]
     (try
       (binding [*handlers* (cons (fn [ex]
-                                   (let [restarts (applicable-restarts *restarts* ex)
+                                   (let [restarts (or *restarts*
+                                                      (vec (mapcat #(% ex) *make-restarts*)))
                                          execution-frame (clojure.lang.Var/getThreadBindingFrame)]
                                      (try (clojure.lang.Var/resetThreadBindingFrame definition-frame)
                                           (binding [*restarts* restarts]
@@ -98,11 +106,13 @@
   `with-restarts` instead of this function."
   [thunk restarts]
   (try
-    (binding [*restarts* (concat restarts *restarts*)]
+    (binding [*make-restarts* (cons (fn [ex]
+                                      (filter #((:applicable? %) ex) restarts))
+                                    *make-restarts*)]
       (try
         (thunk)
         (catch ThreadDeath t
-            (throw t))
+          (throw t))
         (catch UseRestart t
           (throw t))
         (catch HandlerResult t
