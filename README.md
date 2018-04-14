@@ -11,7 +11,7 @@ Restarts can be used in code, as shown below, or they can be used interactively.
 To use interactive restarts with CIDER, load `dont-give-up.el` from [this repo](https://github.com/czan/dont-give-up.nrepl) in Emacs, and install the `dont-give-up.nrepl/handle-restarts` middleware. You can do this by adding it to `~/.lein/profiles.clj`, like this:
 
 ```clojure
-{:user {:dependencies [[org.clojars.czan/dont-give-up.nrepl "0.1.0-SNAPSHOT"]]
+{:user {:dependencies [[org.clojars.czan/dont-give-up.nrepl "0.1.0"]]
         :repl-options {:nrepl-middleware [dont-give-up.nrepl/handle-restarts]}}}
 ```
 
