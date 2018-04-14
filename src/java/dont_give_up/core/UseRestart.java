@@ -1,4 +1,4 @@
-package dont_give_up;
+package dont_give_up.core;
 
 public class UseRestart extends Throwable {
     public final Object restart;

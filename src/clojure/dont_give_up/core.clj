@@ -1,5 +1,5 @@
 (ns dont-give-up.core
-  (:import [dont_give_up UseRestart HandlerResult]))
+  (:import [dont_give_up.core UseRestart HandlerResult]))
 
 (def ^:private ^:dynamic *handlers* nil)
 (def ^:private ^:dynamic *make-restarts* nil)
