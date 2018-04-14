@@ -84,10 +84,13 @@
              (finally
                (clojure.lang.Var/resetThreadBindingFrame execution-frame)))))))
 
-(defn with-handler-fn
+(defn call-with-handler
   "Run `thunk`, using `handler` to handle any exceptions raised.
-  Prefer to use `with-handlers` instead of this function. "
-  [thunk handler]
+  Prefer to use `with-handlers` instead of this function.
+
+  Note that the handler will be used for *all* exceptions, so you must
+  be careful to `rethrow` exceptions that you can't handle."
+  [handler thunk]
   (let [id (gensym "handler-id")]
     (try
       (binding [*handlers* (cons (wrapped-handler id handler) *handlers*)]
@@ -106,14 +109,16 @@
           ((.-thunk t))
           (throw t))))))
 
-(defn with-restarts-fn
-  "Run `thunk` within a dynamic extent in which `make-restarts` adds
-  to the list of current restarts. If an exception is thrown, then
+(defn call-with-restarts
+  "This is an advanced function. Prefer `with-restarts` where possible.
+
+  Run `thunk` within a dynamic extent in which `make-restarts` adds to
+  the list of current restarts. If an exception is thrown, then
   `make-restarts` will be invoked, and must return a list of restarts
   applicable to this exception. If no exception is thrown, then
   `make-restarts` will not be invoked."
-  [thunk make-restarts]
-  (let [id (gensym "id")]
+  [make-restarts thunk]
+  (let [id (gensym "restart-id")]
     (try
       (binding [*make-restarts* (cons (fn [ex]
                                         (map #(assoc % :id id)
@@ -209,49 +214,49 @@
   {:style/indent [1 [[:defn]] :form]}
   [restarts & body]
   (let [ex (gensym "ex")]
-    `(with-restarts-fn
-       (fn ^:once [] ~@body)
-       (fn [~ex]
-         (remove nil?
-                 ~(mapv (fn [restart]
-                          (if (symbol? restart)
-                            restart
-                            (let [[name args & body] restart]
-                              (loop [body body
-                                     describe `(constantly "")
-                                     applicable? `(constantly true)
-                                     make-arguments `(constantly nil)]
-                                (cond
-                                  (= (first body) :describe)
-                                  (recur (nnext body)
-                                         (second body)
-                                         applicable?
-                                         make-arguments)
+    `(call-with-restarts
+      (fn [~ex]
+        (remove nil?
+                ~(mapv (fn [restart]
+                         (if (symbol? restart)
+                           restart
+                           (let [[name args & body] restart]
+                             (loop [body body
+                                    describe `(constantly "")
+                                    applicable? `(constantly true)
+                                    make-arguments `(constantly nil)]
+                               (cond
+                                 (= (first body) :describe)
+                                 (recur (nnext body)
+                                        (second body)
+                                        applicable?
+                                        make-arguments)
 
-                                  (= (first body) :applicable?)
-                                  (recur (nnext body)
-                                         describe
-                                         (second body)
-                                         make-arguments)
+                                 (= (first body) :applicable?)
+                                 (recur (nnext body)
+                                        describe
+                                        (second body)
+                                        make-arguments)
 
-                                  (= (first body) :arguments)
-                                  (recur (nnext body)
-                                         describe
-                                         applicable?
-                                         (second body))
+                                 (= (first body) :arguments)
+                                 (recur (nnext body)
+                                        describe
+                                        applicable?
+                                        (second body))
 
-                                  :else
-                                  `(when (~applicable? ~ex)
-                                     (->Restart ~name
-                                                (let [d# ~describe]
-                                                  (if (string? d#)
-                                                    d#
-                                                    (d# ~ex)))
-                                                (fn []
-                                                  (~make-arguments ~ex))
-                                                (fn ~(vec args)
-                                                  ~@body))))))))
-                        restarts))))))
+                                 :else
+                                 `(when (~applicable? ~ex)
+                                    (->Restart ~name
+                                               (let [d# ~describe]
+                                                 (if (string? d#)
+                                                   d#
+                                                   (d# ~ex)))
+                                               (fn []
+                                                 (~make-arguments ~ex))
+                                               (fn ~(vec args)
+                                                 ~@body))))))))
+                       restarts)))
+      (fn ^:once [] ~@body))))
 
 (defmacro with-handlers
   "Run `body`, using `handlers` to handle any exceptions which are
@@ -297,8 +302,7 @@
   {:style/indent [1 [[:defn]] :form]}
   [handlers & body]
   (let [ex-sym (gensym "ex")]
-    `(with-handler-fn
-      (fn ^:once [] ~@body)
+    `(call-with-handler
       (fn [~ex-sym]
         (cond
           ~@(mapcat (fn [[type arg & body]]
@@ -306,4 +310,5 @@
                         (let [~arg ~ex-sym]
                           ~@body)))
                     handlers)
-          :else (rethrow ~ex-sym))))))
+          :else (rethrow ~ex-sym)))
+      (fn ^:once [] ~@body))))

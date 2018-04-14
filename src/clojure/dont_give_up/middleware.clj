@@ -167,10 +167,9 @@
   [msg & body]
   {:style/indent [1]}
   `(letfn [(run# []
-             (dgu/with-restarts-fn
+             (dgu/call-with-restarts (make-retries ~msg run#)
                (fn ^:once []
-                 ~@body)
-               (make-retries ~msg run#)))]
+                 ~@body)))]
      (run#)))
 
 (defn handled-eval [form]
