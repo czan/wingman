@@ -136,7 +136,7 @@
          (with-handlers [(Exception ex
                            (use-restart :try-1))]
            (with-restarts [(:try-1 []
-                             (count *restarts*))]
+                             (count @#'dont-give-up.core/*restarts*))]
              (throw (RuntimeException.)))))))
 
 (def ^:dynamic *x* nil)
