@@ -14,7 +14,10 @@
 (defmacro with-cleared-restarts [& body]
   `(call-with-cleared-restarts (fn [] ~@body)))
 
-(defrecord Restart [name description make-arguments behaviour])
+(defrecord ^:private Restart [name description make-arguments behaviour])
+
+(defn make-restart [name description make-arguments behaviour]
+  (->Restart name description make-arguments behaviour))
 
 (defn rethrow
   "Rethrow an exception, within the restart machinery. This will
@@ -131,31 +134,23 @@
           (apply (:behaviour (.-restart t)) (.-args t))
           (throw t))))))
 
-(defn- prompt-with-stdin [prompt]
+(defn ^:dynamic prompt-user [prompt]
   (print prompt)
   (flush)
   (read-line))
 
-(defn- prompt-user [prompt]
-  (let [f (or (ns-resolve 'dont-give-up.middleware 'prompt-for-input)
-              prompt-with-stdin)]
-    (f prompt)))
+(def ^:dynamic eval* clojure.core/eval)
 
-(defn- eval* [form]
-  (let [f (or (ns-resolve 'dont-give-up.middleware 'handled-eval)
-              eval)]
-    (f form)))
-
-(defn read-unevaluated-value
-  "Read an unevaluated value from the user, and return it for use as a
+(defn read-form
+  "Read an unevaluated form from the user, and return it for use as a
   restart's arguments;"
   [ex]
   [(try (read-string (prompt-user "Enter a value to be used (unevaluated): "))
         (catch Exception _
           (throw ex)))])
 
-(defn read-and-eval-value
-  "Read a value from the user, and return the evaluated result for use
+(defn read-and-eval-form
+  "Read a form from the user, and return the evaluated result for use
   as a restart's arguments."
   [ex]
   [(eval* (try (read-string (prompt-user "Enter a value to be used (evaluated): "))

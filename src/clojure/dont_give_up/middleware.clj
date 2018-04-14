@@ -1,5 +1,5 @@
 (ns dont-give-up.middleware
-  (:require [dont-give-up.core :as dgu :refer (with-handlers with-restarts)]
+  (:require [dont-give-up.core :as dgu :refer (with-handlers with-restarts make-restart)]
             [clojure.tools.nrepl.transport :as t]
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
             [clojure.tools.nrepl.middleware.session :refer (session)]
@@ -74,7 +74,9 @@
                        (if-let [restart# (or (prompt-for-restarts ex# (dgu/list-restarts))
                                              (dgu/find-restart ::abort))]
                          (apply dgu/use-restart restart#
-                                ((:make-arguments restart#)))
+                                (binding [dgu/prompt-user prompt-for-input
+                                          dgu/eval* handled-eval]
+                                  ((:make-arguments restart#))))
                          (throw ex#)))]
        ~@body)))
 
@@ -87,89 +89,97 @@
            (.startsWith (.getMessage (.getCause ex))
                         "No such var: "))))
 
-(defn extract-var-name [ex]
-  (read-string (.substring (.getMessage (.getCause ex))
-                           (condp #(when (.startsWith %2 %1) %1)
-                               (.getMessage (.getCause ex))
-                             "Unable to resolve symbol: " :>> count
-                             "Unable to resolve var: " :>> count
-                             "No such var: " :>> count))))
-
-(defn missing-classname-exception? [ex]
+(def unbound-var-messages ["Unable to resolve symbol: "
+                           "Unable to resolve var: "
+                           "No such var: "])
+(defn extract-unbound-var-name [ex]
   (and (instance? clojure.lang.Compiler$CompilerException ex)
-       (.startsWith (.getMessage (.getCause ex))
-                    "Unable to resolve classname: ")))
+       (let [message (.getMessage (.getCause ex))]
+         (some #(when (.startsWith message %)
+                  (read-string (.substring message (count %))))
+               unbound-var-messages))))
 
-(defn extract-classname [ex]
-  (read-string (.substring (.getMessage (.getCause ex))
-                           (count "Unable to resolve classname:"))))
-
-(defn unknown-ns-exception? [ex]
+(def missing-class-messages ["Unable to resolve classname: "])
+(defn extract-missing-class-name [ex]
   (and (instance? clojure.lang.Compiler$CompilerException ex)
-       (.startsWith (.getMessage (.getCause ex))
-                    "No such namespace: ")))
+       (let [message (.getMessage (.getCause ex))]
+         (some #(when (.startsWith message %)
+                  (read-string (.substring message (count %))))
+               missing-class-messages))))
 
+(def unknown-ns-messages ["No such namespace: "])
 (defn extract-ns-name [ex]
-  (read-string (.substring (.getMessage (.getCause ex))
-                           (count "No such namespace: "))))
+  (and (instance? clojure.lang.Compiler$CompilerException ex)
+       (let [message (.getMessage (.getCause ex))]
+         (some #(when (.startsWith message %)
+                  (read-string (.substring message (count %))))
+               unknown-ns-messages))))
+
+(defn make-retries [retry-msg run]
+  (fn [ex]
+    (concat
+     [(make-restart :retry retry-msg
+                    (constantly nil)
+                    run)]
+     (when-let [var (extract-unbound-var-name ex)]
+       [(make-restart :define-and-retry
+                      (str "Provide a value for " (pr-str var) " and retry the evaluation.")
+                      #(dgu/read-and-eval-form ex)
+                      (fn [value]
+                        (if-let [ns (namespace var)]
+                          (intern (find-ns (symbol ns))
+                                  (symbol (name var))
+                                  value)
+                          (intern *ns* var value))
+                        (run)))
+        (make-restart :refer-and-retry
+                      (str "Provide a namespace to refer " (pr-str var) " from and retry the evaluation.")
+                      #(dgu/read-form ex)
+                      (fn [ns]
+                        (when-not (find-ns ns)
+                          (require ns))
+                        (binding [*ns* (or (and (namespace var)
+                                                (find-ns (symbol namespace)))
+                                           *ns*)]
+                          (refer ns :only [(symbol (name var))]))
+                        (run)))])
+     (when-let [class (extract-missing-class-name ex)]
+       [(make-restart :import-and-retry
+                       "Provide a package to import the class from and retry the evaluation."
+                       #(dgu/read-form ex)
+                       (fn [package]
+                         (.importClass *ns* (clojure.lang.RT/classForName (str (name package) "." (name class))))
+                         (run)))])
+     (when-let [ns (extract-ns-name ex)]
+       [(make-restart :require-and-retry
+                      (str "Require the " (pr-str ns) " namespace and retry the evaluation.")
+                      (constantly nil)
+                      #(do (require ns)
+                           (run)))
+        (make-restart :require-alias-and-retry
+                      (str "Provide a namespace name, alias it as " (pr-str ns) " and retry the evaluation.")
+                      #(dgu/read-form ex)
+                      (fn [orig-ns]
+                        (require [orig-ns :as ns])
+                        (run)))
+        (make-restart :create-and-retry
+                      (str "Create the " (pr-str ns) " namespace and retry the evaluation.")
+                      (constantly nil)
+                      #(do (create-ns ns)
+                           (run)))])
+     [(make-restart ::abort
+                    "Abort this evaluation."
+                    (constantly nil)
+                    #(throw (ThreadDeath.)))])))
 
 (defmacro with-retry-restart
   [msg & body]
   {:style/indent [1]}
   `(letfn [(run# []
-             (with-restarts [(:retry []
-                               :describe ~msg
-                               (run#))
-                             (:define-and-retry [sym# value#]
-                               :applicable? #'unbound-var-exception?
-                               :describe #(str "Provide a value for `" (pr-str (extract-var-name %)) "` and retry the evaluation.")
-                               :arguments #(cons (extract-var-name %) (dgu/read-and-eval-value %))
-                               (if (namespace sym#)
-                                 (intern (find-ns (symbol (namespace sym#)))
-                                         (symbol (name sym#))
-                                         value#)
-                                 (intern *ns* sym# value#))
-                               (run#))
-                             (:refer-and-retry [sym# ns#]
-                               :applicable? #'unbound-var-exception?
-                               :describe #(str "Provide a namespace to refer `" (pr-str (extract-var-name %)) "` from and retry the evaluation.")
-                               :arguments #(cons (extract-var-name %) (dgu/read-unevaluated-value %))
-                               (when-not (find-ns ns#)
-                                 (require ns#))
-                               (binding [*ns* (or (and (namespace sym#)
-                                                       (find-ns (symbol (namespace sym#))))
-                                                  *ns*)]
-                                 (refer ns# :only [(symbol (name sym#))]))
-                               (run#))
-                             (:import-and-retry [classname# package#]
-                               :applicable? #'missing-classname-exception?
-                               :describe "Provide a package to import the class from and retry the evaluation."
-                               :arguments #(cons (extract-classname %) (dgu/read-unevaluated-value %))
-                               (.importClass *ns*
-                                             (clojure.lang.RT/classForName (str (name package#) "." (name classname#))))
-                               (run#))
-                             (:require-and-retry [ns#]
-                               :applicable? #'unknown-ns-exception?
-                               :describe #(str "Require the `" (pr-str (extract-ns-name %)) "` namespace and retry the evaluation.")
-                               :arguments #(list (extract-ns-name %))
-                               (require ns#)
-                               (run#))
-                             (:require-alias-and-retry [alias# ns#]
-                               :applicable? #'unknown-ns-exception?
-                               :describe #(str "Provide a namespace name, alias it as `" (pr-str (extract-ns-name %)) "` and retry the evaluation.")
-                               :arguments #(cons (extract-ns-name %) (dgu/read-unevaluated-value %))
-                               (require [ns# :as alias#])
-                               (run#))
-                             (:create-and-retry [ns#]
-                               :applicable? #'unknown-ns-exception?
-                               :describe #(str "Create the `" (pr-str (extract-ns-name %)) "` namespace and retry the evaluation.")
-                               :arguments #(list (extract-ns-name %))
-                               (create-ns ns#)
-                               (run#))
-                             (::abort []
-                               :describe "Abort this evaluation."
-                               (throw (ThreadDeath.)))]
-               ~@body))]
+             (dgu/with-restarts-fn
+               (fn ^:once []
+                 ~@body)
+               (make-retries ~msg run#)))]
      (run#)))
 
 (defn handled-eval [form]
@@ -188,6 +198,25 @@
                            (f))))))
       {::original future-call})))
 
+(defn wrapped-agent-fn [f]
+  (fn [state & args]
+    (with-interactive-handler
+      (with-retry-restart "Retry the agent action from the start."
+        (letfn [(run [state args]
+                  (with-restarts [(:ignore []
+                                    :describe "Ignore this action and leave the agent's state unchanged."
+                                    state)
+                                  (:ignore-and-replace [state]
+                                    :describe "Ignore this action and provide a new state for the agent."
+                                    :arguments #'dgu/read-form
+                                    state)
+                                  (:replace-and-retry [state]
+                                    :describe "Provide a new state for the agent, then retry the action."
+                                    :arguments #'dgu/read-form
+                                    (run state args))]
+                    (apply f state args)))]
+          (run state args))))))
+
 (defn handled-send-via [send-via]
   (let [send-via (or (::original (meta send-via))
                      send-via)]
@@ -195,38 +224,20 @@
       (fn [executor agent f & args]
         (letfn [(run []
                   (with-restarts [(:restart-and-retry []
-                                    :applicable? (fn [ex]
-                                                   (.startsWith (.getMessage ex) "Agent is failed"))
+                                    :applicable? #(.startsWith (.getMessage %) "Agent is failed")
                                     :describe "Restart the agent and retry this action dispatch."
                                     (restart-agent agent @agent)
                                     (run))
                                   (:restart-with-state-and-retry [state]
-                                    :applicable? (fn [ex]
-                                                   (.startsWith (.getMessage ex) "Agent is failed"))
+                                    :applicable? #(.startsWith (.getMessage %) "Agent is failed")
                                     :describe "Provide a new state to restart the agent and retry this action dispatch."
-                                    :arguments #'dgu/read-unevaluated-value
+                                    :arguments #'dgu/read-form
                                     (restart-agent agent state)
                                     (run))]
                     (apply send-via
                            executor
                            agent
-                           (fn [state & args]
-                             (with-interactive-handler
-                               (with-retry-restart "Retry the agent action from the start."
-                                 (letfn [(run [state args]
-                                           (with-restarts [(:ignore []
-                                                             :describe "Ignore this action and leave the agent's state unchanged."
-                                                             state)
-                                                           (:ignore-and-replace [state]
-                                                             :describe "Ignore this action and provide a new state for the agent."
-                                                             :arguments #'dgu/read-unevaluated-value
-                                                             state)
-                                                           (:replace-and-retry [state]
-                                                             :describe "Provide a new state for the agent, then retry the action."
-                                                             :arguments #'dgu/read-unevaluated-value
-                                                             (run state args))]
-                                             (apply f state args)))]
-                                   (run state args)))))
+                           (wrapped-agent-fn f)
                            args)))]
           (run)))
       {::original send-via})))
