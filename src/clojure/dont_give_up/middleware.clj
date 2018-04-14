@@ -80,15 +80,6 @@
                          (throw ex#)))]
        ~@body)))
 
-(defn unbound-var-exception? [ex]
-  (and (instance? clojure.lang.Compiler$CompilerException ex)
-       (or (.startsWith (.getMessage (.getCause ex))
-                        "Unable to resolve symbol: ")
-           (.startsWith (.getMessage (.getCause ex))
-                        "Unable to resolve var: ")
-           (.startsWith (.getMessage (.getCause ex))
-                        "No such var: "))))
-
 (def unbound-var-messages ["Unable to resolve symbol: "
                            "Unable to resolve var: "
                            "No such var: "])
