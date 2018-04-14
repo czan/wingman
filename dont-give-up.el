@@ -22,9 +22,9 @@
           (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
           (dgu-prompt-user id error abort causes restarts))))
      ((equal type "restart/ask")
-      (nrepl-dbind-response response (prompt)
+      (nrepl-dbind-response response (prompt options)
         (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
-        (dgu-ask-user id prompt (cider-current-connection)))))))
+        (dgu-ask-user id prompt options (cider-current-connection)))))))
 
 (define-derived-mode dgu-restart-prompt-mode cider-stacktrace-mode "DGU")
 
@@ -134,11 +134,12 @@
       (setq-local dgu-restart-request-id id)
       (setq-local dgu-restarts restarts))))
 
-(defun dgu-ask-user (id prompt connection)
-  (message "%s"(type-of prompt))
+(defun dgu-ask-user (id prompt options connection)
   (nrepl-send-response-to id
                           `("op" "restart/answer"
-                            "input" ,(read-string prompt)
+                            "input" ,(if options
+                                         (completing-read prompt options)
+                                       (read-string prompt))
                             "id" ,id)
                           connection))
 
