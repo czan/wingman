@@ -1,5 +1,7 @@
 (ns dont-give-up.core
-  (:import [dont_give_up.core UseRestart HandlerResult]))
+  (:import (dont_give_up.core UseRestart
+                              HandlerResult
+                              Rethrow)))
 
 (def ^:private ^:dynamic *handlers* nil)
 (def ^:private ^:dynamic *make-restarts* nil)
@@ -31,7 +33,7 @@
   [ex]
   (if (seq *handlers*)
     ((first *handlers*) ex)
-    (throw ex)))
+    (throw (Rethrow. ex))))
 
 (defn list-restarts
   "Return a list of all dynamically-bound restarts."
@@ -84,6 +86,8 @@
                (throw t))
              (catch HandlerResult t
                (throw t))
+             (catch Rethrow t
+               (throw (.-exception t)))
              (catch Throwable t
                (thrown-value id t))
              (finally
