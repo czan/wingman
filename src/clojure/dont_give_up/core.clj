@@ -1,7 +1,7 @@
 (ns dont-give-up.core
   (:import (dont_give_up.core UseRestart
                               HandlerResult
-                              Rethrow)))
+                              UnhandledException)))
 
 (def ^:private ^:dynamic *handlers* nil)
 (def ^:private ^:dynamic *make-restarts* nil)
@@ -33,7 +33,14 @@
   [ex]
   (if (seq *handlers*)
     ((first *handlers*) ex)
-    (throw (Rethrow. ex))))
+    (throw ex)))
+
+(defn unhandle-exception
+  "Rethrow an exception, unwinding the stack and propagating it as
+  normal. This makes it seem as if the exception was never caught, but
+  it may still be caught by handlers/restarts higher in the stack."
+  [ex]
+  (throw (UnhandledException. ex)))
 
 (defn list-restarts
   "Return a list of all dynamically-bound restarts."
@@ -86,7 +93,7 @@
                (throw t))
              (catch HandlerResult t
                (throw t))
-             (catch Rethrow t
+             (catch UnhandledException t
                (throw (.-exception t)))
              (catch Throwable t
                (thrown-value id t))
