@@ -266,48 +266,48 @@
   [restarts & body]
   (let [ex (gensym "ex")]
     `(call-with-restarts
-      (fn [~ex]
-        (remove nil?
-                ~(mapv (fn [restart]
-                         (if (symbol? restart)
-                           restart
-                           (let [[name args & body] restart]
-                             (loop [body body
-                                    describe `(constantly "")
-                                    applicable? `(constantly true)
-                                    make-arguments `(constantly nil)]
-                               (cond
-                                 (= (first body) :describe)
-                                 (recur (nnext body)
-                                        (second body)
-                                        applicable?
-                                        make-arguments)
+         (fn [~ex]
+           (remove nil?
+                   ~(mapv (fn [restart]
+                            (if (symbol? restart)
+                              restart
+                              (let [[name args & body] restart]
+                                (loop [body body
+                                       describe `(constantly "")
+                                       applicable? `(constantly true)
+                                       make-arguments `(constantly nil)]
+                                  (cond
+                                    (= (first body) :describe)
+                                    (recur (nnext body)
+                                           (second body)
+                                           applicable?
+                                           make-arguments)
 
-                                 (= (first body) :applicable?)
-                                 (recur (nnext body)
-                                        describe
-                                        (second body)
-                                        make-arguments)
+                                    (= (first body) :applicable?)
+                                    (recur (nnext body)
+                                           describe
+                                           (second body)
+                                           make-arguments)
 
-                                 (= (first body) :arguments)
-                                 (recur (nnext body)
-                                        describe
-                                        applicable?
-                                        (second body))
+                                    (= (first body) :arguments)
+                                    (recur (nnext body)
+                                           describe
+                                           applicable?
+                                           (second body))
 
-                                 :else
-                                 `(when (~applicable? ~ex)
-                                    (->Restart ~name
-                                               (let [d# ~describe]
-                                                 (if (string? d#)
-                                                   d#
-                                                   (d# ~ex)))
-                                               (fn []
-                                                 (~make-arguments ~ex))
-                                               (fn ~(vec args)
-                                                 ~@body))))))))
-                       restarts)))
-      (^:once fn [] ~@body))))
+                                    :else
+                                    `(when (~applicable? ~ex)
+                                       (->Restart ~name
+                                                  (let [d# ~describe]
+                                                    (if (string? d#)
+                                                      d#
+                                                      (d# ~ex)))
+                                                  (fn []
+                                                    (~make-arguments ~ex))
+                                                  (fn ~(vec args)
+                                                    ~@body))))))))
+                          restarts)))
+       (^:once fn [] ~@body))))
 
 (defmacro with-handlers
   "Run `body`, using `handlers` to handle any exceptions which are
