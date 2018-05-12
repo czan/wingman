@@ -141,7 +141,7 @@
                                 \"Use this value\"
                                 #(read-form ex)
                                 identity)])
-        (fn ^:once []
+        (^:once fn []
           (/ 1 0)))
 
   You should usually use the `with-restarts` macro, but if you need to
@@ -160,7 +160,7 @@
                             (str \"Resolve value from \" namespace)
                             (constantly nil)
                             #(ns-resolve namespace symbol))))
-          (fn ^:once []
+          (^:once fn []
             (resolve symbol))))
 
   Which provides a restart for each namespace that has a var with the
@@ -307,7 +307,7 @@
                                                (fn ~(vec args)
                                                  ~@body))))))))
                        restarts)))
-      (fn ^:once [] ~@body))))
+      (^:once fn [] ~@body))))
 
 (defmacro with-handlers
   "Run `body`, using `handlers` to handle any exceptions which are
@@ -363,4 +363,4 @@
                           ~@body)))
                     handlers)
           :else (rethrow ~ex-sym)))
-      (fn ^:once [] ~@body))))
+      (^:once fn [] ~@body))))
