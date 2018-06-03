@@ -139,7 +139,7 @@ For example, here is how to use `with-handlers` to replace try/catch:
 
 Similarly to try/catch, multiple handlers can be defined for different exception types, and the first matching handler will be run to handle the exception.
 
-Handlers can have only one of four outcomes:
+Handlers can have only one of five outcomes:
 
 1. invoke `invoke-restart`, which will restart execution from the specified restart
 
@@ -149,7 +149,11 @@ Handlers can have only one of four outcomes:
 
 4. throw an exception, which will be thrown as the result of the `with-handler-fn` form
 
+5. invoke `unhandle-exception`, which will re-throw the exception from where it was caught
+
 Conceptually, options `1` and `2` process the error without unwinding the stack, and options `3` and `4` unwind the stack up until the handler.
+
+Option `5` is a special case, and will propagate the exception as if `dont-give-up` had never caught it. This can have some surprising effects, and should only be used in cases where the exception is required be propagated through normal JVM stack unwinding. The most common reason for this is for code which relies on exceptions to do feature detection. Normally `dont-give-up` could bypass those catch clauses, so the exception must be left unhandled.
 
 ## License
 
