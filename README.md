@@ -4,94 +4,89 @@ Oh no, something's gone wrong! Don't give up! Restart your computation using Com
 
 [![Clojars Project](https://img.shields.io/clojars/v/org.clojars.czan/dont-give-up.svg)](https://clojars.org/org.clojars.czan/dont-give-up)
 
-Restarts can be used in code, as shown below, or they can be used interactively. When an exception is thrown, the user is asked which restart to use (if there are any available). This has been implemented as nrepl middleware, with an associated cider extension.
+# Setup
 
-`dont-give-up` has been designed to be as unobtrusive as possible. You can add it to your `~/.lein/profiles.clj` file to get the benefit of interactive restarts in CIDER without affecting anything else.
+To get the most out of `dont-give-up`, install the [CIDER support][1].
 
-To use interactive restarts with CIDER, load `dont-give-up.el` from [this repo](https://github.com/czan/dont-give-up.nrepl) in Emacs, and install the `dont-give-up.nrepl/handle-restarts` middleware. You can do this by adding it to `~/.lein/profiles.clj`, like this:
+[1]: https://github.com/czan/dont-give-up.nrepl
 
-```clojure
-{:user {:dependencies [[org.clojars.czan/dont-give-up.nrepl "0.1.0"]]
-        :repl-options {:nrepl-middleware [dont-give-up.nrepl/handle-restarts]}}}
-```
+# Usage
 
-## Example
-
-In a newly-started CIDER REPL with the `dont-give-up` middleware loaded, run:
+Register restarts with the `with-restarts` macro. This example wraps `inc` into a function which allows us to recover if we have accidentally passed it a non-number value.
 
 ```clojure
-(inc x)
+(defn restartable-inc [x]
+  (with-restarts [(:use-value [value] value)]
+    (inc x)))
+;;=> #'user/restartable-inc
 ```
 
-Your REPL should now freeze (because the evaluation is waiting), and a new buffer should pop up with the following:
+Now, we can map this function over a list with some non-number values:
 
-```
-Unable to resolve symbol: x in this context
-
-The following restarts are available:
-  [1] :retry Retry the REPL evaluation.
-  [2] :define-and-retry Provide a value for `x` and retry the evaluation.
-  [3] :refer-and-retry Provide a namespace to refer `x` from and retry the evaluation.
-  [q] abort Abort this evaluation.
-
-
-... Followed by exception details/stacktrace
+```clojure
+(into [] (map restartable-inc [1 2 3 :a :b nil]))
+;;=> ClassCastException: clojure.lang.Keyword cannot be cast to java.lang.Number
 ```
 
-You are being asked how to continue. As the message explains, you have four options:
+Note that the behaviour of the function is unchanged when there is no appropriate handler established. Adding restarts does nothing if there aren't any appropriate handlers registered. However, if we wrap it in a `with-handlers` form:
 
-1. Retry the evaluation again, exactly the same as it was. In this case it would just fail again, as `x` still hasn't been defined, but this can be helpful for some things which resolve themselves.
+```clojure
+(with-handlers [(Exception ex (invoke-restart :use-value nil))]
+  (into [] (map restartable-inc [1 2 3 :a :b nil 10 11 12])))
+;;=> [2 3 4 nil nil nil 11 12 13]
+```
 
-2. Retry the evaluation again, but after defining `x`. If you choose this option you will be prompted for a value to use. `x` will then be defined in the current namespace to the value you provided, and the evaluation will be run again.
+When an error is encountered, the handler provided by `with-handlers` is called to decide on a course of action. In this case, it always decides to invoke the `:use-value` restart with a value of `nil`. This results in each of the error cases being added into the list as a `nil`.
 
-3. Retry the evaluation again, but after referring the var from another namespace. If you choose this option you will be prompted for a namespace to refer. `x` will then be defined as if you had run ```(require `[~provided-ns :refer [x]])```.
+It is also possible to have multiple layers of restarts to choose from. For example, we might define our own `restartable-map`, which lets us skip items that throw exceptions:
 
-4. Abort. Just give up, and stop.
+```clojure
+(defn restartable-map [f s]
+  (lazy-seq
+    (when (seq s)
+      (with-restarts [(:skip [] (restartable-map f (rest s)))]
+        (cons (f (first s)) (restartable-map f (rest s)))))))
+;;=> #'user/restartable-map
+```
 
-For this example, we'll select 2. Press the `2` key on your keyboard, and type the number `300` into the minibuffer prompt.
+Now we can run the same example as before:
 
-The REPL should now show the return value of the evaluation: `301`.
+```clojure
+(with-handlers [(Exception ex (invoke-restart :use-value nil))]
+  (into [] (restartable-map restartable-inc [1 2 3 :a :b nil 10 11 12])))
+;;=> [2 3 4 nil nil nil 11 12 13]
+```
 
-You can also evaluate `x` in the REPL to see that it is, in fact, `300`.
+Or, we can change our strategy and decide to skip failing values:
 
-To show off another option, try running `(union #{1 2} #{2 3})`, and using the interactive restart to refer from `clojure.set`.
+```clojure
+(with-handlers [(Exception ex (invoke-restart :skip))]
+  (into [] (restartable-map restartable-inc [1 2 3 :a :b nil 10 11 12])))
+;;=> [2 3 4 11 12 13]
+```
+
+Or we can decide that we want to replace `nil` with `0`, and skip everything else:
+
+```clojure
+(with-handlers [(NullPointerException ex (invoke-restart :use-value 0))
+                (Exception ex (invoke-restart :skip))]
+  (into [] (restartable-map restartable-inc [1 2 3 :a :b nil 10 11 12])))
+;;=> [2 3 4 11 12 13]
+```
+
+In this way, restarts allow us to separate the _decision_ about how to recover from an error from the _mechanics_ of actually recovering from the error. This enables higher-level code to make decisions about how lower level functions should recover from their errors, without unwinding the stack.
 
 ## Why restarts?
 
 Why should we want to use restarts in Clojure? [Chris Houser already gave us a great model for error handling in Clojure](https://www.youtube.com/watch?v=zp0OEDcAro0), why should I use `dont-give-up`? The answer to this question is really about _interactivity_.
 
-The method of binding dynamic variables for error handling is roughly equivalent to what `dont-give-up` does, but where the plain dynamic-variables approach fails is tool support. There is no way for a tool to find out what the options are to restart execution, and to present that choice to the user in an interactive session. From the start, the focus in `dont-give-up` has been on the REPL experience. It is primarily about recovering from errors in the REPL, and only then making that same functionality available in code.
+The method of binding dynamic variables for error handling is roughly equivalent to what `dont-give-up` does, but where the plain dynamic-variables approach fails is tool support. There is no way for our tooling to find out what the options are to restart execution, and to present that choice to the user in an interactive session. From the start, the focus in `dont-give-up` has been on the REPL experience. It is primarily about recovering from errors in the REPL, and only then making that same functionality available in code.
 
 ## What about Exceptions?
 
-Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most past this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have no effect on a program unless that program opts-in to using them by installing handlers.
+Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most past this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have _no effect_ on a program unless that program opts-in to using them by installing handlers.
 
-There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from Throwable, so as long as you don't catch Throwable you should be fine. If you do catch Throwable, please ensure that `dont_give_up.core.UseRestart` and `dont_give_up.core.HandlerResult` are re-thrown.
-
-## Usage (code)
-
-```clojure
-(require '[dont-give-up.core :refer (with-restarts with-handlers read-unevaluated-value use-restart)])
-
-(defn div [n d]
-  (with-restarts [(:use-value [value]
-                    :arguments #'read-unevaluated-value
-                    :describe "Provide a value to use."
-                    value)
-                  (:use-denominator [value]
-                    :arguments #'read-unevaluated-value
-                    :describe "Provide a new denominator and retry."
-                    (div n value))]
-    (/ n d)))
-
-(with-handlers [(ArithmeticException ex
-                  (use-restart :use-value 100))]
-  (div 3 0)) ;; => 100
-
-(with-handlers [(ArithmeticException ex
-                  (use-restart :use-denominator 100))]
-  (div 3 0)) ;; => 3/100
-```
+There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from `java.lang.Throwable`, so as long as you don't catch `Throwable` you should be fine. If you do catch `Throwable`, please ensure that `dont_give_up.core.UseRestart`, `dont_give_up.core.HandlerResult`, `dont_give_up.core.UnhandledException` are re-thrown.
 
 ## Writing restarts
 
@@ -104,7 +99,7 @@ As an example, a simple restart to use a provided value would look like this:
   (/ 1 0))
 ```
 
-This would allow a handler to invoke `(use-restart :use-value 10)` to recover from this exception, and to return `10` as the result of the `with-restarts` form.
+This would allow a handler to invoke `(invoke-restart :use-value 10)` to recover from this exception, and to return `10` as the result of the `with-restarts` form.
 
 In addition, restarts can have three extra attributes defined:
 
@@ -126,7 +121,7 @@ Here is an example of the above restart using these attributes:
 
 Restarts are invoked in the same dynamic context in which they were defined. The stack is unwound to the level of the `with-restarts` form, and the restart is invoked.
 
-Multiple restarts with the same name can be defined, but the "closest" one will be invoked by a call to `use-restart`.
+Multiple restarts with the same name can be defined, but the "closest" one will be invoked by a call to `invoke-restart`.
 
 Restart names can be any value that is not an instance of `dont-give-up.core.Restart`, but it is recommended to use keywords as names.
 
@@ -139,14 +134,14 @@ For example, here is how to use `with-handlers` to replace try/catch:
 ```clojure
 (with-handlers [(Exception ex (.getMessage ex))]
   (/ 1 0))
-;; => "Divide by zero"
+;;=> "Divide by zero"
 ```
 
 Similarly to try/catch, multiple handlers can be defined for different exception types, and the first matching handler will be run to handle the exception.
 
 Handlers can have only one of four outcomes:
 
-1. invoke `use-restart`, which will restart execution from the specified restart
+1. invoke `invoke-restart`, which will restart execution from the specified restart
 
 2. invoke `rethrow`, which will defer to a handler higher up the call-stack, or `throw` if this is the highest handler
 
@@ -155,10 +150,6 @@ Handlers can have only one of four outcomes:
 4. throw an exception, which will be thrown as the result of the `with-handler-fn` form
 
 Conceptually, options `1` and `2` process the error without unwinding the stack, and options `3` and `4` unwind the stack up until the handler.
-
-If `handler` is invoked, the dynamic var context will be set to be as similar as possible to the dynamic context when `with-hander-fn` is called. This simulates the fact that the handler conceptually executes at a point much further up the call stack.
-
-Any dynamic state captured in things other than vars (e.g. `ThreadLocal`s, open files, mutexes) will be in the state of the `with-restarts` execution nearest to the thrown exception.
 
 ## License
 
