@@ -185,6 +185,17 @@
           (throw t))))))
 
 (defn ^:dynamic prompt-user
+  "Prompt the user for some input, in whatever way you can.
+
+  This function will be dynamically rebound by whatever tooling is
+  currently active, to prompt the user appropriately.
+
+  Provide a `type` in order to hint to tooling what kind of thing you
+  want to read. Legal values of `type` are implementation dependent,
+  depending on the tooling in use. Tools should support a minimum of
+  `:form` (to read a Clojure form), `:file` (to read a filename), and
+  `:options` (to choose an option from a list of options, provided as
+  the first argument after `type`)."
   ([prompt]
    (prompt-user prompt nil))
   ([prompt type & args]
@@ -192,7 +203,12 @@
    (flush)
    (read-line)))
 
-(def ^:dynamic eval* clojure.core/eval)
+(def ^:dynamic eval*
+  "Evaluate a form, in the most relevant way.
+
+  This function will be dynamically rebound by whatever tooling is
+  currently active, to properly wrap evaluation."
+  clojure.core/eval)
 
 (defn read-form
   "Read an unevaluated form from the user, and return it for use as a
