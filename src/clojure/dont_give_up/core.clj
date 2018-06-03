@@ -96,6 +96,8 @@
            (catch Throwable t
              (thrown-value id t))))))
 
+(def ^:private next-handler-id (volatile! 0))
+
 (defn call-with-handler
   "Run `thunk`, using `handler` to handle any exceptions raised.
   Prefer to use `with-handlers` instead of this function.
@@ -103,7 +105,7 @@
   Note that the handler will be used for *all* exceptions, so you must
   be careful to `rethrow` exceptions that you can't handle."
   [handler thunk]
-  (let [id (gensym "handler-id")]
+  (let [id (vswap! next-handler-id inc)]
     (try
       (binding [*handlers* (cons (wrapped-handler id handler) *handlers*)]
         (try
@@ -120,6 +122,8 @@
         (if (= (.-handlerId t) id)
           ((.-thunk t))
           (throw t))))))
+
+(def ^:private next-restart-id (volatile! 0))
 
 (defn call-with-restarts
   "This is an advanced function. Prefer `with-restarts` where possible.
@@ -163,7 +167,7 @@
   correct name."
   {:style/indent [1]}
   [make-restarts thunk]
-  (let [id (gensym "restart-id")]
+  (let [id (vswap! next-restart-id inc)]
     (try
       (binding [*make-restarts* (cons (fn [ex]
                                         (map #(assoc % :id id)
