@@ -75,7 +75,7 @@
              (IllegalArgumentException. (str "No restart registered for " restart))))))
 
 (defn- handled-value [id value]
-  (throw (HandlerResult. id #(do value))))
+  (throw (HandlerResult. id (constantly value))))
 
 (defn- thrown-value [id value]
   (throw (HandlerResult. id #(throw value))))
