@@ -6,7 +6,7 @@ Oh no, something's gone wrong! Don't give up! Restart your computation using Com
 
 ## Setup
 
-Add `[org.clojars.czan/dont-give-up "0.1.0"]` to your dependency vector.
+Add `[org.clojars.czan/dont-give-up "0.2.0"]` to your dependency vector.
 
 To get the most out of `dont-give-up`, install the [CIDER support][1].
 
