@@ -21,7 +21,7 @@
 (deftest handlers-should-work-even-above-try-catch
   (is (= 11
          (with-handlers [(Exception ex
-                           (use-restart :use-value 10))]
+                           (invoke-restart :use-value 10))]
            (try
              (+ (with-restarts [(:use-value [value]
                                   value)]
@@ -32,32 +32,32 @@
 (deftest restarts-from-exceptions-should-work
   (is (= 10
          (with-handlers [(Exception ex
-                           (use-restart :use-value 10))]
+                           (invoke-restart :use-value 10))]
            (with-restarts [(:use-value [value] value)]
              (throw (RuntimeException.)))))))
 
 (deftest restarts-should-bubble-up-if-unhandled
   (is (= 10
-         (with-handlers [(Exception ex (use-restart :use-value 10))]
+         (with-handlers [(Exception ex (invoke-restart :use-value 10))]
            (with-handlers [(ArithmeticException ex)]
              (with-restarts [(:use-value [value] value)]
                (throw (RuntimeException.)))))))
   (is (= 10
-         (with-handlers [(Exception ex (use-restart :use-value 10))]
+         (with-handlers [(Exception ex (invoke-restart :use-value 10))]
            (with-handlers [(ArithmeticException ex (rethrow ex))]
              (with-restarts [(:use-value [value] value)]
                (throw (ArithmeticException.))))))))
 
 (deftest restarts-should-use-the-most-specific-named-restart
   (is (= 10
-         (with-handlers [(Exception ex (use-restart :use-default))]
+         (with-handlers [(Exception ex (invoke-restart :use-default))]
            (with-restarts [(:use-default [] 13)]
              (with-restarts [(:use-default [] 10)]
                (throw (RuntimeException.))))))))
 
 (deftest restarts-should-restart-from-the-right-point
   (is (= 0
-         (with-handlers [(Exception ex (use-restart :use-zero))]
+         (with-handlers [(Exception ex (invoke-restart :use-zero))]
            (with-restarts [(:use-zero [] 0)]
              (inc (with-restarts [(:use-one [] 1)]
                     (throw (Exception.)))))))))
@@ -134,7 +134,7 @@
 (deftest restarts-should-go-away-during-handler
   (is (= 0
          (with-handlers [(Exception ex
-                           (use-restart :try-1))]
+                           (invoke-restart :try-1))]
            (with-restarts [(:try-1 []
                              (count @#'dont-give-up.core/*restarts*))]
              (throw (RuntimeException.)))))))

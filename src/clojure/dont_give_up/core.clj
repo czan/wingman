@@ -61,7 +61,7 @@
   [restart]
   (first (find-restarts restart)))
 
-(defn use-restart
+(defn invoke-restart
   "Use the provided restart, with the given arguments. The restart
   provided can be a name, in which case it will be looked up and the
   most recently-bound matching restart will be used. If an instance of
@@ -236,7 +236,7 @@
       (with-restarts [(:use-value [value] value)]
         (/ 1 0))
 
-  This would allow a handler to invoke `(use-restart :use-value 10)`
+  This would allow a handler to invoke `(invoke-restart :use-value 10)`
   to recover from this exception, and to return `10` as the result of
   the `with-restarts` form.
 
@@ -269,7 +269,7 @@
   form, and the restart is invoked.
 
   Multiple restarts with the same name can be defined, but the
-  \"closest\" one will be invoked by a call to `use-restart`.
+  \"closest\" one will be invoked by a call to `invoke-restart`.
 
   Restart names can be any value that is not an instance of
   `dont-give-up.core.Restart`, but it is recommended to use keywords
@@ -338,7 +338,7 @@
 
   Handlers can have only one of four outcomes:
 
-  1. invoke `use-restart`, which will restart execution from the
+  1. invoke `invoke-restart`, which will restart execution from the
   specified restart
 
   2. invoke `rethrow`, which will either defer to a handler higher up
