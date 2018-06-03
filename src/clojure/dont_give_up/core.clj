@@ -29,7 +29,7 @@
   "Rethrow an exception, without unwinding the stack any further. This
   will invoke the nearest handler to handle the error. If no handlers
   are available then this is equivalent to `throw`, and the stack will
-  be unwinded."
+  be unwound."
   [ex]
   (if (seq *handlers*)
     ((first *handlers*) ex)
