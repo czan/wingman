@@ -358,9 +358,12 @@
       (fn [~ex-sym]
         (cond
           ~@(mapcat (fn [[type arg & body]]
-                      `((instance? ~type ~ex-sym)
-                        (let [~arg ~ex-sym]
-                          ~@body)))
+                      (if (seq body)
+                        `((instance? ~type ~ex-sym)
+                          (let [~arg ~ex-sym]
+                            ~@body))
+                        `((instance? ~type ~ex-sym)
+                          nil)))
                     handlers)
           :else (rethrow ~ex-sym)))
       (^:once fn [] ~@body))))
