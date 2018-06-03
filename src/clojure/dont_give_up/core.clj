@@ -187,7 +187,7 @@
 (defn ^:dynamic prompt-user
   ([prompt]
    (prompt-user prompt nil))
-  ([prompt options]
+  ([prompt type & args]
    (print prompt)
    (flush)
    (read-line)))
@@ -198,7 +198,7 @@
   "Read an unevaluated form from the user, and return it for use as a
   restart's arguments;"
   [ex]
-  [(try (read-string (prompt-user "Enter a value to be used (unevaluated): "))
+  [(try (read-string (prompt-user "Enter a value to be used (unevaluated): " :form))
         (catch Exception _
           (throw ex)))])
 
@@ -206,7 +206,7 @@
   "Read a form from the user, and return the evaluated result for use
   as a restart's arguments."
   [ex]
-  [(eval* (try (read-string (prompt-user "Enter a value to be used (evaluated): "))
+  [(eval* (try (read-string (prompt-user "Enter a value to be used (evaluated): " :form))
                (catch Exception _
                  (throw ex))))])
 
