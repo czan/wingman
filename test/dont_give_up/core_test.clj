@@ -138,14 +138,3 @@
            (with-restarts [(:try-1 []
                              (count @#'dont-give-up.core/*restarts*))]
              (throw (RuntimeException.)))))))
-
-(def ^:dynamic *x* nil)
-
-(deftest dynamic-bindings-should-be-set-for-handlers-and-restarts
-  (is (= [1 0]
-         (binding [*x* 0]
-           (with-handlers [(Exception ex
-                             (use-restart :x *x*))]
-             (binding [*x* 1]
-               (with-restarts [(:x [local] [*x* local])]
-                 (throw (Exception.)))))))))

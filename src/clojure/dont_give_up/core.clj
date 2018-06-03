@@ -81,24 +81,20 @@
   (throw (HandlerResult. id #(throw value))))
 
 (defn- wrapped-handler [id handler]
-  (let [definition-frame (clojure.lang.Var/getThreadBindingFrame)]
-    (fn [ex]
-      (let [restarts (or *restarts*
-                         (vec (mapcat #(% ex) *make-restarts*)))
-            execution-frame (clojure.lang.Var/getThreadBindingFrame)]
-        (try (clojure.lang.Var/resetThreadBindingFrame definition-frame)
-             (binding [*restarts* restarts]
-               (handled-value id (handler ex)))
-             (catch UseRestart t
-               (throw t))
-             (catch HandlerResult t
-               (throw t))
-             (catch UnhandledException t
-               (throw (.-exception t)))
-             (catch Throwable t
-               (thrown-value id t))
-             (finally
-               (clojure.lang.Var/resetThreadBindingFrame execution-frame)))))))
+  (fn [ex]
+    (let [restarts (or *restarts*
+                       (vec (mapcat #(% ex) *make-restarts*)))]
+      (try (binding [*restarts* restarts
+                     *handlers* (next *handlers*)]
+             (handled-value id (handler ex)))
+           (catch UseRestart t
+             (throw t))
+           (catch HandlerResult t
+             (throw t))
+           (catch UnhandledException t
+             (throw (.-exception t)))
+           (catch Throwable t
+             (thrown-value id t))))))
 
 (defn call-with-handler
   "Run `thunk`, using `handler` to handle any exceptions raised.
