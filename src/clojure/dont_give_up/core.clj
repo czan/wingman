@@ -16,7 +16,9 @@
 (defmacro with-cleared-restarts [& body]
   `(call-with-cleared-restarts (fn [] ~@body)))
 
-(defrecord Restart [name description make-arguments behaviour])
+(defrecord ^:private Restart [name description make-arguments behaviour])
+(alter-meta! #'->Restart assoc :private true)
+(alter-meta! #'map->Restart assoc :private true)
 
 (defn make-restart
   "Create an instance of `Restart`. When using the `with-restarts`
@@ -313,15 +315,16 @@
 
                                     :else
                                     `(when (~applicable? ~ex)
-                                       (->Restart ~name
-                                                  (let [d# ~describe]
-                                                    (if (string? d#)
-                                                      d#
-                                                      (d# ~ex)))
-                                                  (fn []
-                                                    (~make-arguments ~ex))
-                                                  (fn ~(vec args)
-                                                    ~@body))))))))
+                                       (make-restart
+                                        ~name
+                                        (let [d# ~describe]
+                                          (if (string? d#)
+                                            d#
+                                            (d# ~ex)))
+                                        (fn []
+                                          (~make-arguments ~ex))
+                                        (fn ~(vec args)
+                                          ~@body))))))))
                           restarts)))
        (^:once fn [] ~@body))))
 
