@@ -4,7 +4,7 @@
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0"]]
-  :source-paths ["src/clojure"]
-  :java-source-paths ["src/java"]
+  :source-paths ["src"]
+  :java-source-paths ["src"]
   :repositories [["releases" {:url "https://clojars.org/repo"
                               :creds :gpg}]])
