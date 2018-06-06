@@ -18,9 +18,7 @@
             *restarts* nil]
     (thunk)))
 
-(defrecord ^:private Restart [name description make-arguments behaviour])
-(alter-meta! #'->Restart assoc :private true)
-(alter-meta! #'map->Restart assoc :private true)
+(defrecord Restart [name description make-arguments behaviour])
 
 (defn restart?
   "Returns true if a given object represents a restart. Otherwise,
