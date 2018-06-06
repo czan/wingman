@@ -1,0 +1,11 @@
+(ns dont-give-up.nrepl.plugin)
+
+(defn middleware [project]
+  (-> project
+      (update-in [:dependencies]
+                 (fnil into [])
+                 [['org.clojars.czan/dont-give-up.nrepl "0.2.1-SNAPSHOT"]])
+      (update-in [:repl-options :nrepl-middleware]
+                 (fnil into [])
+                 (do (require 'dont-give-up.nrepl)
+                     @(resolve 'dont-give-up.nrepl/middleware)))))
