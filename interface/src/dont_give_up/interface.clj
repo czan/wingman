@@ -1,6 +1,10 @@
 (ns dont-give-up.interface
   (:require [dont-give-up.core :as dgu]))
 
+(defn list-restarts
+  []
+  (dgu/list-restarts))
+
 (defn find-restarts
   "Return a list of all dynamically-bound restarts with the provided
   name. If passed an instance of `Restart`, search by equality."
@@ -28,6 +32,10 @@
     (apply dgu/invoke-restart restart args)
     (throw (IllegalArgumentException. (str "No restart registered for " name)))))
 
+(defn unhandle-exception
+  [ex]
+  (dgu/unhandle-exception ex))
+
 (defn rethrow
   "Rethrow an exception, propagating it to a higher error handler
   without unwinding the stack. If there are no further error handlers,
@@ -47,9 +55,9 @@
   "Read a form from the user, and return the evaluated result for use
   as a restart's arguments."
   [ex]
-  [(dgu/eval (try (read-string (dgu/prompt-user "Enter a value to be used (evaluated): " :form))
-                  (catch Exception _
-                    (throw ex))))])
+  [(eval (try (read-string (dgu/prompt-user "Enter a value to be used (evaluated): " :form))
+              (catch Exception _
+                (throw ex))))])
 
 (defmacro without-handling [& body]
   `(dgu/call-without-handling (fn [] ~@body)))

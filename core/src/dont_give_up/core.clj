@@ -189,15 +189,6 @@
   `:options` (to choose an option from a list of options, provided as
   the first argument after `type`)."
   ([prompt]
-   (prompt-user prompt nil))
+   (throw (IllegalStateException. "In order to prompt the user, a tool must redefine this function.")))
   ([prompt type & args]
-   (print prompt)
-   (flush)
-   (read-line)))
-
-(def ^:dynamic eval
-  "Evaluate a form, in the most relevant way.
-
-  This function will be dynamically rebound by whatever tooling is
-  currently active, to properly wrap evaluation."
-  clojure.core/eval)
+   (throw (IllegalStateException. "In order to prompt the user, a tool must redefine this function."))))

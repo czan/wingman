@@ -141,19 +141,19 @@
         (if-let [alias (namespace var)]
           [(make-restart :refer
                          (str "Provide a namespace to refer as " (str alias) " and retry the evaluation.")
-                         #(list (read-string (dgu/prompt-user "Provide a namespace name: "
-                                                              :options
-                                                              (map (comp str ns-name)
-                                                                   (namespaces-with-var (symbol (name var)))))))
+                         #(list (read-string (prompt-user "Provide a namespace name: "
+                                                          :options
+                                                          (map (comp str ns-name)
+                                                               (namespaces-with-var (symbol (name var)))))))
                          (fn [ns]
                            (require [ns :as (symbol alias)])
                            (run)))]
           [(make-restart :refer
                          (str "Provide a namespace to refer " (str var) " from and retry the evaluation.")
-                         #(list (read-string (dgu/prompt-user "Provide a namespace name: "
-                                                              :options
-                                                              (map (comp str ns-name)
-                                                                   (namespaces-with-var var)))))
+                         #(list (read-string (prompt-user "Provide a namespace name: "
+                                                          :options
+                                                          (map (comp str ns-name)
+                                                               (namespaces-with-var var)))))
                          (fn [ns]
                            (require [ns :refer [var]])
                            (run)))])))
@@ -300,7 +300,7 @@
             (with-restarts [(:filename [filename]
                               :describe "Provide a filename to open."
                               :applicable? #(instance? java.io.FileNotFoundException %)
-                              :arguments (fn [ex] (list (dgu/prompt-user "Filename to open: " :file)))
+                              :arguments (fn [ex] (list (prompt-user "Filename to open: " :file)))
                               (run filename))]
               (apply reader filename opts)))]
     (run filename)))
