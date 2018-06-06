@@ -90,6 +90,7 @@
 
   Note that the handler will be used for *all* exceptions, so you must
   be careful to `rethrow` exceptions that you can't handle."
+  {:style/indent [1]}
   [handler thunk]
   (let [id (vswap! next-handler-id inc)]
     (try
