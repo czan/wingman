@@ -97,13 +97,11 @@
       (binding [*handlers* (cons (wrapped-handler id handler) *handlers*)]
         (try
           (thunk)
-          (catch ThreadDeath t
-            (throw t))
           (catch UseRestart t
             (throw t))
           (catch HandlerResult t
             (throw t))
-          (catch Throwable t
+          (catch Exception t
             (rethrow t))))
       (catch HandlerResult t
         (if (= (.-handlerId t) id)
@@ -162,13 +160,11 @@
                                       *make-restarts*)]
         (try
           (thunk)
-          (catch ThreadDeath t
-            (throw t))
           (catch UseRestart t
             (throw t))
           (catch HandlerResult t
             (throw t))
-          (catch Throwable t
+          (catch Exception t
             (rethrow t))))
       (catch UseRestart t
         (if (= (:id (.-restart t)) id)
