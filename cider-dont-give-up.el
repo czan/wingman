@@ -208,7 +208,7 @@ to ask how to proceed."
     (funcall hook-fn 'nrepl-response-handler-functions #'cdgu-handle-nrepl-response)
     (funcall list-fn
              'cider-jack-in-dependencies
-             '("org.clojars.czan/dont-give-up.nrepl" "0.2.0"))
+             '("org.clojars.czan/dont-give-up.nrepl" "0.2.1-SNAPSHOT"))
     (funcall list-fn
              'cider-jack-in-dependencies-exclusions
              '("org.clojars.czan/dont-give-up.nrepl" ("org.clojure/clojure" "org.clojure/tools.nrepl")))
@@ -217,7 +217,7 @@ to ask how to proceed."
              "dont-give-up.nrepl/middleware")
     (funcall list-fn
              'cider-jack-in-lein-plugins
-             '("org.clojars.czan/dont-give-up.nrepl" "0.2.0"))))
+             '("org.clojars.czan/dont-give-up.nrepl" "0.2.1-SNAPSHOT"))))
 
 ;;;###autoload
 (with-eval-after-load 'cider
