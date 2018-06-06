@@ -193,13 +193,32 @@
      (cdgu-cancel id connection))))
 
 ;;;###autoload
+(define-minor-mode cider-dont-give-up-minor-mode
+  "Support nrepl responses from the dont-give-up nrepl
+middleware. When an exception occurs, the user will be prompted
+to ask how to proceed."
+  :global t
+  (let ((hook-fn (if cider-dont-give-up-minor-mode
+                     #'add-hook
+                   #'remove-hook))
+        (list-fn (if cider-dont-give-up-minor-mode
+                     #'add-to-list
+                   #'(lambda (lsym obj)
+                       (set lsym (remove obj (symbol-value lsym)))))))
+    (funcall hook-fn 'nrepl-response-handler-functions #'cdgu-handle-nrepl-response)
+    (funcall list-fn
+             'cider-jack-in-dependencies
+             '("org.clojars.czan/dont-give-up.nrepl" "0.2.0"))
+    (funcall list-fn
+             'cider-jack-in-dependencies-exclusions
+             '("org.clojars.czan/dont-give-up.nrepl" ("org.clojure/clojure" "org.clojure/tools.nrepl")))
+    (funcall list-fn
+             'cider-jack-in-nrepl-middlewares
+             "dont-give-up.nrepl/middleware")
+    (funcall list-fn
+             'cider-jack-in-lein-plugins
+             '("org.clojars.czan/dont-give-up.nrepl" "0.2.0"))))
+
+;;;###autoload
 (with-eval-after-load 'cider
-  (add-hook 'nrepl-response-handler-functions #'cdgu-handle-nrepl-response)
-  (add-to-list 'cider-jack-in-dependencies
-	       '("org.clojars.czan/dont-give-up.nrepl" "0.2.0"))
-  (add-to-list 'cider-jack-in-dependencies-exclusions
-	       '("org.clojars.czan/dont-give-up.nrepl" ("org.clojure/clojure" "org.clojure/tools.nrepl")))
-  (add-to-list 'cider-jack-in-nrepl-middlewares
-	       "dont-give-up.nrepl/middleware")
-  (add-to-list 'cider-jack-in-lein-plugins
-	       '("org.clojars.czan/dont-give-up.nrepl" "0.2.0")))
+  (cider-dont-give-up-minor-mode 1))
