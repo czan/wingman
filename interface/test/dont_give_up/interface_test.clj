@@ -3,7 +3,7 @@
             [dont-give-up.interface :refer :all]))
 
 (use-fixtures :once (fn [f]
-                      (with-cleared-restarts
+                      (without-handling
                         (f))))
 
 (deftest handlers-should-use-the-first-matching-clause

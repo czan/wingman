@@ -51,8 +51,8 @@
                   (catch Exception _
                     (throw ex))))])
 
-(defmacro with-cleared-restarts [& body]
-  `(dgu/call-with-cleared-restarts (fn [] ~@body)))
+(defmacro without-handling [& body]
+  `(dgu/call-without-handling (fn [] ~@body)))
 
 (defmacro with-restarts
   "Run `body`, providing `restarts` as dynamic restarts to handle

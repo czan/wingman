@@ -83,34 +83,6 @@
        (finally
          (swap! awaiting-prompts dissoc id))))))
 
-(defmacro with-recursive-body [name & body]
-  `(letfn [(~name []
-            ~@body)]
-     (~name)))
-
-(defmacro with-interactive-handler [retry & body]
-  `(dgu/with-cleared-restarts
-     (with-handlers
-         [(Throwable ex#
-            (letfn [(prompt# []
-                      (if-let [restart# (prompt-for-restarts ex# (dgu/list-restarts))]
-                        (cond
-                          (= restart# unhandled) (dgu/unhandle-exception ex#)
-                          (= restart# abort) (throw (ThreadDeath.))
-                          :else (try
-                                  (apply dgu/invoke-restart restart#
-                                         (binding [dgu/prompt-user prompt-for-input
-                                                   dgu/eval handled-eval]
-                                           ((:make-arguments restart#))))
-                                  (catch InterruptedException ex#
-                                    (throw ex#))
-                                  (catch Exception ex#
-                                    (prompt#))))
-                        (throw ex#)))]
-              (prompt#)))]
-       (with-recursive-body ~retry
-         ~@body))))
-
 (def unbound-var-messages ["Unable to resolve symbol: "
                            "Unable to resolve var: "
                            "No such var: "])
@@ -151,7 +123,7 @@
         :when (-> v meta :ns (= namespace))]
     namespace))
 
-(defn make-repl-restarts [run retry-msg]
+(defn make-restarts [run retry-msg]
   (fn [ex]
     (concat
      (when-let [var (extract-unbound-var-name ex)]
@@ -214,14 +186,42 @@
                     (constantly nil)
                     run)])))
 
+(defmacro with-recursive-body [name & body]
+  `(letfn [(~name []
+            ~@body)]
+     (~name)))
+
+(defn- prompt [ex]
+  (if-let [restart (prompt-for-restarts ex (dgu/list-restarts))]
+    (cond
+      (= restart unhandled) (dgu/unhandle-exception ex)
+      (= restart abort) (throw (ThreadDeath.))
+      :else (try
+              (apply dgu/invoke-restart restart
+                     (binding [prompt-user prompt-for-input]
+                       ((:make-arguments restart))))
+              (catch Exception _
+                (prompt ex))))
+    (throw ex)))
+
+(defn call-with-interactive-handler [body-fn]
+  (dgu/without-handling
+   (with-handlers [(Exception ex (prompt ex))]
+     (with-recursive-body retry
+       (call-with-restarts (make-restarts retry "Retry the evaluation.")
+                           #(body-fn retry))))))
+
+(defmacro with-interactive-handler [retry & body]
+  `(call-with-interactive-handler
+    (fn [~retry]
+      ~@body)))
+
 (defn handled-eval [form]
   (let [eval (if (::eval e/*msg*)
                (resolve (symbol (::eval e/*msg*)))
                clojure.core/eval)]
     (with-interactive-handler retry
-      (dgu/call-with-restarts (make-repl-restarts retry "Retry the REPL evaluation.")
-                              (^:once fn []
-                                (eval form))))))
+      (eval form))))
 
 (defmacro wrapper
   {:style/indent [1]}
@@ -358,7 +358,7 @@
       (t/send transport (response-for msg :status :error)))))
 
 (defwrapper unhandled-test-var [test-var v]
-  (dgu/with-cleared-restarts
+  (dgu/without-handling
     (test-var v)))
 
 (def wrappers

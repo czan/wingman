@@ -8,7 +8,11 @@
 (def ^:private ^:dynamic *make-restarts* nil)
 (def ^:private ^:dynamic *restarts* nil)
 
-(defn call-with-cleared-restarts [thunk]
+(defn call-without-handling
+  "Call `thunk` with no active handlers and no current restarts. Any
+  exceptions raised by `thunk` will propagate normally. Note that an
+  exception raised by this call will be handled normally."
+  [thunk]
   (binding [*handlers* nil
             *make-restarts* nil
             *restarts* nil]
