@@ -1,12 +1,12 @@
 # dont-give-up
 
-Oh no, something's gone wrong! Don't give up! Restart your computation using Common Lisp-style restarts, instead!
+Flexible exception handling for Clojure, allowing you to recover from exceptions without unwinding the stack. `dont-give-up` tries hard to interoperate with the existing JVM exception system, to enable code using restarts to easily interoperate with code that uses plain exceptions. Libraries writers can add restarts and consumers can use try/catch without problems.
 
 [![Clojars Project](https://img.shields.io/clojars/v/org.clojars.czan/dont-give-up.svg)](https://clojars.org/org.clojars.czan/dont-give-up)
 
 ## Setup
 
-Add `[org.clojars.czan/dont-give-up "0.2.0"]` to your dependency vector.
+Add `[org.clojars.czan/dont-give-up.interface "0.2.0"]` to your dependency vector.
 
 To get the most out of `dont-give-up`, install the [CIDER support][1].
 
@@ -124,7 +124,7 @@ Here is an example of the above restart using these attributes:
 
 Restarts are invoked in the same dynamic context in which they were defined. The stack is unwound to the level of the `with-restarts` form, and the restart is invoked.
 
-Multiple restarts with the same name can be defined, but the "closest" one will be invoked by a call to `invoke-restart`.
+Multiple restarts with the same name can be defined, but the "deepest" one will be invoked by a call to `invoke-restart`. You can use `find-restarts`, or even `list-restarts`, if you would like to introspect the available restarts.
 
 Restart names can be any value that is not an instance of `dont-give-up.core.Restart`, but it is recommended to use keywords as names.
 
