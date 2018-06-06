@@ -1,4 +1,4 @@
-(defproject org.clojars.czan/dont-give-up "0.2.1-SNAPSHOT"
+(defproject org.clojars.czan/dont-give-up.core "0.2.1-SNAPSHOT"
   :description "Common Lisp style restarts in Clojure"
   :url "https://github.com/czan/dont-give-up"
   :license {:name "MIT"
