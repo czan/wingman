@@ -1,5 +1,5 @@
 (defproject org.clojars.czan/dont-give-up.interface "0.2.1-SNAPSHOT"
-  :description "Common Lisp style restarts in Clojure"
+  :description "Restartable exception handling for Clojure"
   :url "https://github.com/czan/dont-give-up"
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}

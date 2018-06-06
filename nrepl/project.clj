@@ -1,5 +1,5 @@
 (defproject org.clojars.czan/dont-give-up.nrepl "0.2.1-SNAPSHOT"
-  :description "Common Lisp style restarts in Clojure, nrepl support"
+  :description "Restartable exception handling for Clojure"
   :url "https://github.com/czan/dont-give-up.nrepl"
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}
