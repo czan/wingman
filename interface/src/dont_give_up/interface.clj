@@ -47,9 +47,9 @@
   "Read a form from the user, and return the evaluated result for use
   as a restart's arguments."
   [ex]
-  [(dgu/eval* (try (read-string (dgu/prompt-user "Enter a value to be used (evaluated): " :form))
-                   (catch Exception _
-                     (throw ex))))])
+  [(dgu/eval (try (read-string (dgu/prompt-user "Enter a value to be used (evaluated): " :form))
+                  (catch Exception _
+                    (throw ex))))])
 
 (defmacro with-cleared-restarts [& body]
   `(dgu/call-with-cleared-restarts (fn [] ~@body)))

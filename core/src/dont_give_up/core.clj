@@ -1,4 +1,5 @@
 (ns dont-give-up.core
+  (:refer-clojure :exclude [eval])
   (:import (dont_give_up.core UseRestart
                               HandlerResult
                               UnhandledException)))
@@ -190,7 +191,7 @@
    (flush)
    (read-line)))
 
-(def ^:dynamic eval*
+(def ^:dynamic eval
   "Evaluate a form, in the most relevant way.
 
   This function will be dynamically rebound by whatever tooling is

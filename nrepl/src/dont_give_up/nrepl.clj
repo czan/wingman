@@ -100,7 +100,7 @@
                           :else (try
                                   (apply dgu/invoke-restart restart#
                                          (binding [dgu/prompt-user prompt-for-input
-                                                   dgu/eval* handled-eval]
+                                                   dgu/eval handled-eval]
                                            ((:make-arguments restart#))))
                                   (catch InterruptedException ex#
                                     (throw ex#))
