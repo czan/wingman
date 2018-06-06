@@ -27,9 +27,9 @@
   (instance? Restart obj))
 
 (defn make-restart
-  "Create an instance of `Restart`. When using the `with-restarts`
-  macro it's unnecessary to use this function. It is only necessary
-  when using `call-with-restarts` to create restarts."
+  "Create an object representing a restart with the given name,
+  description, interactive prompt function, and behaviour when
+  invoked."
   [name description make-arguments behaviour]
   (->Restart name description make-arguments behaviour))
 
@@ -51,13 +51,13 @@
   (throw (UnhandledException. ex)))
 
 (defn list-restarts
-  "Return a list of all dynamically-bound restarts."
+  "Return a list of all current restarts."
   []
   *restarts*)
 
 (defn invoke-restart
   "Use the provided restart, with the given arguments. No attempt is
-  made to validate that the provided restart is currently active.
+  made to validate that the provided restart is current.
 
   Always throws an exception, will never return normally."
   [restart & args]
@@ -126,33 +126,11 @@
 
       (call-with-restarts
         (fn [ex] [(make-restart :use-value
-                                \"Use this value\"
-                                #(read-form ex)
+                                \"Use this string\"
+                                (fn [ex] (prompt-user \"Raw string to use: \"))
                                 identity)])
         (^:once fn []
-          (/ 1 0)))
-
-  You should usually use the `with-restarts` macro, but if you need to
-  dynamically vary your restarts depending on the type of exception
-  that is thrown, `call-with-restarts` will let you register restarts
-  only after the exception has been thrown. Generally you should use
-  the `:applicable?` property of the `with-restarts` macro, but using
-  `call-with-restarts` lets you do things like this:
-
-      (defn resolve [symbol]
-        (call-with-restarts
-          (fn [ex]
-            (for [namespace (all-ns)
-                  :when (ns-resolve namespace symbol)]
-              (make-restart (keyword (str \"use-\" namespace))
-                            (str \"Resolve value from \" namespace)
-                            (constantly nil)
-                            #(ns-resolve namespace symbol))))
-          (^:once fn []
-            (resolve symbol))))
-
-  Which provides a restart for each namespace that has a var with the
-  correct name."
+          (/ 1 0)))"
   {:style/indent [1]}
   [make-restarts thunk]
   (let [id (vswap! next-restart-id inc)]
