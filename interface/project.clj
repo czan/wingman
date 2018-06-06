@@ -3,6 +3,7 @@
   :url "https://github.com/czan/dont-give-up"
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}
-  :dependencies [[org.clojure/clojure "1.8.0"]]
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.clojars.czan/dont-give-up.core "0.2.1-SNAPSHOT"]]
   :repositories [["releases" {:url "https://clojars.org/repo"
                               :creds :gpg}]])
