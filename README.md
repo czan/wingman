@@ -1,6 +1,8 @@
 # dont-give-up
 
-Flexible exception handling for Clojure, allowing you to recover from exceptions without unwinding the stack. `dont-give-up` tries hard to interoperate with the existing JVM exception system, to enable code using restarts to easily interoperate with code that uses plain exceptions. Libraries writers can add restarts and consumers can use try/catch without problems.
+Restartable exception handling for Clojure, allowing you to recover from exceptions without unwinding the stack.
+
+`dont-give-up` tries hard to interoperate with the existing JVM exception system, to enable code using restarts to easily interoperate with code that uses plain exceptions. Libraries writers can add restarts, and consumers can use try/catch without problems.
 
 [![Clojars Project](https://img.shields.io/clojars/v/org.clojars.czan/dont-give-up.svg)](https://clojars.org/org.clojars.czan/dont-give-up)
 
