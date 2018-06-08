@@ -1,8 +1,6 @@
 (ns dont-give-up.core
   (:refer-clojure :exclude [eval])
-  (:import (dont_give_up.core UseRestart
-                              HandlerResult
-                              UnhandledException)))
+  (:import (dont_give_up.core ScopeResult)))
 
 (def ^:private ^:dynamic *handlers* nil)
 (def ^:private ^:dynamic *make-restarts* nil)
@@ -48,7 +46,7 @@
   normal. This makes it seem as if the exception was never caught, but
   it may still be caught by handlers/restarts higher in the stack."
   [ex]
-  (throw (UnhandledException. ex)))
+  (throw (ScopeResult. nil #(throw ex))))
 
 (defn list-restarts
   "Return a list of all current restarts."
@@ -61,13 +59,18 @@
 
   Always throws an exception, will never return normally."
   [restart & args]
-  (throw (UseRestart. restart args)))
+  (throw (ScopeResult. (:id restart) #(apply (:behaviour restart) args))))
 
 (defn- handled-value [id value]
-  (throw (HandlerResult. id (constantly value))))
+  (throw (ScopeResult. id (constantly value))))
 
 (defn- thrown-value [id value]
-  (throw (HandlerResult. id #(throw value))))
+  (throw (ScopeResult. id #(throw value))))
+
+(defn run-or-throw [id ^ScopeResult result]
+  (if (= (.-scopeId result) id)
+    ((.-thunk result))
+    (throw result)))
 
 (defn- wrapped-handler [id handler]
   (fn [ex]
@@ -76,16 +79,12 @@
       (try (binding [*restarts* restarts
                      *handlers* (next *handlers*)]
              (handled-value id (handler ex)))
-           (catch UseRestart t
-             (throw t))
-           (catch HandlerResult t
-             (throw t))
-           (catch UnhandledException t
-             (throw (.-exception t)))
+           (catch ScopeResult t
+             (run-or-throw nil t))
            (catch Throwable t
              (thrown-value id t))))))
 
-(def ^:private next-handler-id (volatile! 0))
+(def ^:private next-id (volatile! 0))
 
 (defn call-with-handler
   "Run `thunk`, using `handler` to handle any exceptions raised.
@@ -95,23 +94,15 @@
   be careful to `rethrow` exceptions that you can't handle."
   {:style/indent [1]}
   [handler thunk]
-  (let [id (vswap! next-handler-id inc)]
+  (let [id (vswap! next-id inc)]
     (try
       (binding [*handlers* (cons (wrapped-handler id handler) *handlers*)]
         (try
           (thunk)
-          (catch UseRestart t
-            (throw t))
-          (catch HandlerResult t
-            (throw t))
           (catch Exception t
             (rethrow t))))
-      (catch HandlerResult t
-        (if (= (.-handlerId t) id)
-          ((.-thunk t))
-          (throw t))))))
-
-(def ^:private next-restart-id (volatile! 0))
+      (catch ScopeResult t
+        (run-or-throw id t)))))
 
 (defn call-with-restarts
   "This is an advanced function. Prefer `with-restarts` where possible.
@@ -133,7 +124,7 @@
           (/ 1 0)))"
   {:style/indent [1]}
   [make-restarts thunk]
-  (let [id (vswap! next-restart-id inc)]
+  (let [id (vswap! next-id inc)]
     (try
       (binding [*make-restarts* (cons (fn [ex]
                                         (map #(assoc % :id id)
@@ -141,16 +132,10 @@
                                       *make-restarts*)]
         (try
           (thunk)
-          (catch UseRestart t
-            (throw t))
-          (catch HandlerResult t
-            (throw t))
           (catch Exception t
             (rethrow t))))
-      (catch UseRestart t
-        (if (= (:id (.-restart t)) id)
-          (apply (:behaviour (.-restart t)) (.-args t))
-          (throw t))))))
+      (catch ScopeResult t
+        (run-or-throw id t)))))
 
 (defn ^:dynamic prompt-user
   "Prompt the user for some input, in whatever way you can.
