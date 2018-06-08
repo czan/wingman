@@ -88,10 +88,44 @@
 
 (defn call-with-handler
   "Run `thunk`, using `handler` to handle any exceptions raised.
-  Prefer to use `with-handlers` instead of this function.
 
-  Note that the handler will be used for *all* exceptions, so you must
-  be careful to `rethrow` exceptions that you can't handle."
+  There are five possible outcomes for your handler:
+
+  1. Return a value normally: the `call-with-handler` form will return
+  that value.
+
+  2. Throw an exception: the `call-with-handler` form will throw that
+  exception.
+
+  3. Invoke a restart, using `invoke-restart`: the handler will cease
+  executing, and the code of the restart will be invoked, continuing
+  to execute from that point.
+
+  4. Invoke `unhandle-exception` on an exception: the exception will
+  be thrown from the point where this handler was invoked. This should
+  be used with care.
+
+  5. Invoke `rethrow` on an exception: defer the decision to a handler
+  higher in the call-stack. If there is no such handler, the exception
+  will be thrown (which will appear the same as option 2).
+
+  Notes:
+
+   - The handler will be used for *all* exceptions, so you must be
+  careful to `rethrow` exceptions that you are unable to handle.
+
+   - Invoking `unhandle-exception` is primarily useful when working
+  with code that uses exceptions to do feature-detection. The handler
+  mechanism can, in some cases, cause catch clauses to be
+  \"skipped\",bypassing exception-based feature detection. If
+  possible, avoid using `unhandle-exception`, as it can result in
+  handlers firing multiple times for the same exception.
+
+  Examples:
+
+    (call-with-handler #(str \"Caught an exception: \" (.getMessage %))
+      #(/ 1 0))
+    ;;=>\"Caught an exception: Divide by zero\""
   {:style/indent [1]}
   [handler thunk]
   (let [id (vswap! next-id inc)]
@@ -105,7 +139,7 @@
         (run-or-throw id t)))))
 
 (defn call-with-restarts
-  "This is an advanced function. Prefer `with-restarts` where possible.
+  "Run `thunk`, using `make-restarts` to create restarts for exceptions.
 
   Run `thunk` within a dynamic extent in which `make-restarts` adds to
   the list of current restarts. If an exception is thrown, then
@@ -116,12 +150,11 @@
   For example:
 
       (call-with-restarts
-        (fn [ex] [(make-restart :use-value
-                                \"Use this string\"
-                                (fn [ex] (prompt-user \"Raw string to use: \"))
-                                identity)])
-        (^:once fn []
-          (/ 1 0)))"
+          (fn [ex] [(make-restart :use-value
+                                  (str \"Use this string instead of \" (.getMessage ex))
+                                  #(prompt-user \"Raw string to use: \")
+                                  identity)])
+        #(/ 1 0))"
   {:style/indent [1]}
   [make-restarts thunk]
   (let [id (vswap! next-id inc)]

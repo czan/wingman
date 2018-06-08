@@ -128,3 +128,21 @@
                  #(call-with-restarts (fn [ex] [])
                     (fn []
                       (throw (Exception.))))))))
+
+(deftest docstring-examples
+  (is (= (call-with-handler #(str "Caught an exception: " (.getMessage %))
+           #(/ 1 0))
+         "Caught an exception: Divide by zero"))
+  (let [[{:keys [name description behaviour]}]
+        (call-with-handler (fn [ex] (list-restarts))
+          (fn []
+            (call-with-restarts
+                (fn [ex] [(make-restart :use-value
+                                       (str "Use this string instead of " (.getMessage ex))
+                                       #(prompt-user "Raw string to use: ")
+                                       identity)])
+              #(/ 1 0))))]
+    (is (= name :use-value))
+    (is (= description "Use this string instead of Divide by zero"))
+    ;; we can't test make-behaviour, because the instance will be different
+    (is (= behaviour identity))))
