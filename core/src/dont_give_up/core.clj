@@ -115,10 +115,10 @@
   careful to `rethrow` exceptions that you are unable to handle.
 
    - Invoking `unhandle-exception` is primarily useful when working
-  with code that uses exceptions to do feature-detection. The handler
-  mechanism can, in some cases, cause catch clauses to be
-  \"skipped\",bypassing exception-based feature detection. If
-  possible, avoid using `unhandle-exception`, as it can result in
+  with code that uses exceptions to provide fallback behaviour. The
+  restart handler mechanism can, in some cases, cause catch clauses to
+  be \"skipped\", bypassing exception-based mechanisms. If possible,
+  avoid using `unhandle-exception`, as it can result in restart
   handlers firing multiple times for the same exception.
 
   Examples:
