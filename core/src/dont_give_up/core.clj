@@ -134,7 +134,9 @@
       (binding [*handlers* (cons (wrapped-handler id handler) *handlers*)]
         (try
           (thunk)
-          (catch Exception t
+          (catch ScopeResult t
+            (throw t))
+          (catch Throwable t
             (rethrow t))))
       (catch ScopeResult t
         (run-or-throw id t)))))
@@ -166,7 +168,9 @@
                                       *make-restarts*)]
         (try
           (thunk)
-          (catch Exception t
+          (catch ScopeResult t
+            (throw t))
+          (catch Throwable t
             (rethrow t))))
       (catch ScopeResult t
         (run-or-throw id t)))))
