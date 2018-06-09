@@ -49,7 +49,8 @@
   (throw (ScopeResult. nil #(throw ex))))
 
 (defn list-restarts
-  "Return a list of all current restarts."
+  "Return a list of all current restarts. This function must only be
+  called within the dynamic extent of a handler execution."
   []
   *restarts*)
 
