@@ -59,7 +59,11 @@
               (catch Exception _
                 (throw ex))))])
 
-(defmacro without-handling [& body]
+(defmacro without-handling
+  "Run `body` with no active handlers and no current restarts. Any
+  exceptions raised by `thunk` will propagate normally. Note that an
+  exception raised by this call will be handled normally."
+  [& body]
   `(dgu/call-without-handling (fn [] ~@body)))
 
 (defmacro with-restarts
@@ -173,33 +177,8 @@
   different exception types, and the first matching handler will be
   run to handle the exception.
 
-  Handlers can have only one of four outcomes:
-
-  1. invoke `invoke-restart`, which will restart execution from the
-  specified restart
-
-  2. invoke `rethrow`, which will either defer to a handler higher up
-  the call-stack, or propagate the exception via standard JVM
-  mechanisms.
-
-  3. return a value, which will be the value returned from the
-  `with-handler-fn` form
-
-  4. throw an exception, which will be thrown as the result of the
-  `with-handler-fn` form
-
-  Conceptually, options `1` and `2` process the error without
-  unwinding the stack, and options `3` and `4` unwind the stack up
-  until the handler.
-
-  If `handler` is invoked, the dynamic var context will be set to be
-  as similar as possible to the dynamic context when `with-hander-fn`
-  is called. This simulates the fact that the handler conceptually
-  executes at a point much further up the call stack.
-
-  Any dynamic state captured in things other than vars (e.g.
-  `ThreadLocal`s, open files, mutexes) will be in the state of the
-  `with-restarts` execution nearest to the thrown exception."
+  See `dont-give-up.core/call-with-handler` for more details about
+  handler functions."
   {:style/indent [1 [[:defn]] :form]}
   [handlers & body]
   (let [ex-sym (gensym "ex")]
