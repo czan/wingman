@@ -2,8 +2,19 @@
   (:require [dont-give-up.core :as dgu]))
 
 (defn list-restarts
+  {:doc (:doc (meta #'dgu/list-restarts))}
   []
   (dgu/list-restarts))
+
+(defn unhandle-exception
+  {:doc (:doc (meta #'dgu/unhandle-exception))}
+  [ex]
+  (dgu/unhandle-exception ex))
+
+(defn rethrow
+  {:doc (:doc (meta #'dgu/rethrow))}
+  [ex]
+  (dgu/rethrow ex))
 
 (defn find-restarts
   "Return a list of all dynamically-bound restarts with the provided
@@ -31,17 +42,6 @@
   (if-let [restart (find-restart name)]
     (apply dgu/invoke-restart restart args)
     (throw (IllegalArgumentException. (str "No restart registered for " name)))))
-
-(defn unhandle-exception
-  [ex]
-  (dgu/unhandle-exception ex))
-
-(defn rethrow
-  "Rethrow an exception, propagating it to a higher error handler
-  without unwinding the stack. If there are no further error handlers,
-  unwind the stack."
-  [ex]
-  (dgu/rethrow ex))
 
 (defn read-form
   "Read an unevaluated form from the user, and return it for use as a
