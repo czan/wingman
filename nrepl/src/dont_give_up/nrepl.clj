@@ -187,10 +187,10 @@
                     (constantly nil)
                     run)])))
 
-(defmacro with-recursive-body [name & body]
-  `(letfn [(~name []
+(defmacro with-recursive-body [name bindings & body]
+  `(letfn [(~name ~(mapv first (partition 2 bindings))
             ~@body)]
-     (~name)))
+     (~name ~@(map second (partition 2 bindings)))))
 
 (defn- prompt [ex]
   (if-let [restart (prompt-for-restarts ex (dgu/list-restarts))]
@@ -207,22 +207,18 @@
 
 (defn call-with-interactive-handler [body-fn]
   (dgu/without-handling
-   (with-handlers [(Exception ex (prompt ex))]
-     (with-recursive-body retry
-       (call-with-restarts (make-restarts retry "Retry the evaluation.")
-                           #(body-fn retry))))))
+   (with-handlers [(Throwable ex (prompt ex))]
+     (with-recursive-body retry []
+       (call-with-restarts (make-restarts retry "Retry the evaluation.") body-fn)))))
 
-(defmacro with-interactive-handler [retry & body]
-  `(call-with-interactive-handler
-    (fn [~retry]
-      ~@body)))
+(defmacro with-interactive-handler [& body]
+  `(call-with-interactive-handler (^:once fn [] ~@body)))
 
 (defn handled-eval [form]
   (let [eval (if (::eval e/*msg*)
                (resolve (symbol (::eval e/*msg*)))
                clojure.core/eval)]
-    (with-interactive-handler retry
-      (eval form))))
+    (with-interactive-handler (eval form))))
 
 (defmacro wrapper
   {:style/indent [1]}
@@ -247,64 +243,53 @@
 
 (defwrapper handled-future-call [future-call f]
   (if e/*msg*
-    (future-call (fn []
-                   (with-interactive-handler retry
-                     (with-restarts [(:retry []
-                                       :describe "Retry the future evaluation from the start."
-                                       (retry))]
-                       (f)))))
+    (future-call #(call-with-interactive-handler f))
     (future-call f)))
 
 (defn handled-agent-fn [f]
   (fn [state & args]
-    (with-interactive-handler retry
-      (letfn [(retry [state args]
-                (with-restarts [(:ignore []
-                                  :describe "Ignore this action and leave the agent's state unchanged."
-                                  state)
-                                (:ignore-and-replace [state]
-                                  :describe "Ignore this action and provide a new state for the agent."
-                                  :arguments #'dgu/read-form
-                                  state)
-                                (:replace [state]
+    (with-interactive-handler
+      (with-recursive-body retry [state state, args args]
+        (with-restarts [(:ignore []
+                                 :describe "Ignore this action and leave the agent's state unchanged."
+                                 state)
+                        (:ignore-and-replace [state]
+                                             :describe "Ignore this action and provide a new state for the agent."
+                                             :arguments #'dgu/read-form
+                                             state)
+                        (:replace [state]
                                   :describe "Provide a new state for the agent, then retry the action."
                                   :arguments #'dgu/read-form
-                                  (retry state args))
-                                (:retry []
-                                  :describe "Retry the agent action from the start."
                                   (retry state args))]
-                  (apply f state args)))]
-        (retry state args)))))
+          (apply f state args))))))
 
 (defwrapper handled-send-via [send-via executor agent f & args]
-  (letfn [(retry []
-            (with-restarts [(:restart []
-                              :applicable? #(.startsWith (.getMessage %) "Agent is failed")
-                              :describe "Restart the agent and retry this action dispatch."
-                              (restart-agent agent @agent)
-                              (retry))
-                            (:restart-with-state [state]
-                              :applicable? #(.startsWith (.getMessage %) "Agent is failed")
-                              :describe "Provide a new state to restart the agent and retry this action dispatch."
-                              :arguments #'dgu/read-form
-                              (restart-agent agent state)
-                              (retry))]
-              (apply send-via
-                     executor
-                     agent
-                     (handled-agent-fn f)
-                     args)))]
-    (retry)))
+  (with-recursive-body retry []
+    (with-restarts [(:restart []
+                       :applicable? #(.startsWith (.getMessage %) "Agent is failed")
+                       :describe "Restart the agent and retry this action dispatch."
+                       (restart-agent agent @agent)
+                       (retry))
+                    (:restart-with-state [state]
+                       :applicable? #(.startsWith (.getMessage %) "Agent is failed")
+                       :describe "Provide a new state to restart the agent and retry this action dispatch."
+                       :arguments #'dgu/read-form
+                       (restart-agent agent state)
+                       (retry))]
+      (apply send-via
+             executor
+             agent
+             (handled-agent-fn f)
+             args))))
 
 (defwrapper restartable-reader [reader filename & opts]
-  (letfn [(run [filename]
-            (with-restarts [(:filename [filename]
-                              :describe "Provide a filename to open."
-                              :applicable? #(instance? java.io.FileNotFoundException %)
-                              :arguments (fn [ex] (list (prompt-user "Filename to open: " :file)))
-                              (run filename))]
-              (apply reader filename opts)))]
-    (run filename)))
+  (with-recursive-body run [filename filename]
+    (with-restarts [(:filename [filename]
+                       :describe "Provide a filename to open."
+                       :applicable? #(instance? java.io.FileNotFoundException %)
+                       :arguments (fn [ex] (list (prompt-user "Filename to open: " :file)))
+                       (run filename))]
+      (apply reader filename opts))))
 
 (defwrapper restartable-ns-resolve
   ([ns-resolve ns sym]
