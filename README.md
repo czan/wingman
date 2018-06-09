@@ -89,7 +89,7 @@ The method of binding dynamic variables for error handling is roughly equivalent
 
 Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most past this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have _no effect_ on a program unless that program opts-in to using them by installing handlers.
 
-There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from `java.lang.Throwable`, so as long as you don't catch `Throwable` you should be fine. If you do catch `Throwable`, please ensure that `dont_give_up.core.UseRestart`, `dont_give_up.core.HandlerResult`, `dont_give_up.core.UnhandledException` are re-thrown.
+There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from `java.lang.Throwable`, so as long as you don't catch `Throwable` you should be fine. If you do catch `Throwable`, please ensure that `dont_give_up.core.ScopeResult` is re-thrown.
 
 ## Writing restarts
 
@@ -142,21 +142,21 @@ For example, here is how to use `with-handlers` to replace try/catch:
 
 Similarly to try/catch, multiple handlers can be defined for different exception types, and the first matching handler will be run to handle the exception.
 
-Handlers can have only one of five outcomes:
+There are five possible outcomes for a handler:
 
-1. invoke `invoke-restart`, which will restart execution from the specified restart
+1. Return a value normally: the `call-with-handler` form will return that value.
 
-2. invoke `rethrow`, which will defer to a handler higher up the call-stack, or `throw` if this is the highest handler
+2. Throw an exception: the `call-with-handler` form will throw that exception.
 
-3. return a value, which will be the value returned from the `with-handler-fn` form
+3. Invoke a restart, using `invoke-restart`: the handler will cease executing, and the code of the restart will be invoked, continuing to execute from that point.
 
-4. throw an exception, which will be thrown as the result of the `with-handler-fn` form
+4. Invoke `unhandle-exception` on an exception: the exception will be thrown from the point where this handler was invoked. This should be used with care.
 
-5. invoke `unhandle-exception`, which will re-throw the exception from where it was caught
+5. Invoke `rethrow` on an exception: defer the decision to a handler higher in the call-stack. If there is no such handler, the exception will be thrown (which will appear the same as option 2).
 
-Conceptually, options `1` and `2` process the error without unwinding the stack, and options `3` and `4` unwind the stack up until the handler.
+Conceptually, options 1 and 2 unwind the stack up until the handler, option 3 unwinds the stack to the appropriate restart, option 4 hands back to JVM exception handling, and option 5 delegates to another handler without unwinding the stack at all.
 
-Option `5` is a special case, and will propagate the exception as if `dont-give-up` had never caught it. This can have some surprising effects, and should only be used in cases where the exception is required be propagated through normal JVM stack unwinding. The most common reason for this is for code which relies on exceptions to do feature detection. Normally `dont-give-up` could bypass those catch clauses, so the exception must be left unhandled.
+Invoking `unhandle-exception` is primarily useful when working with code that uses exceptions to provide fallback behaviour. The restart handler mechanism can, in some cases, cause catch clauses to be \"skipped\", bypassing exception-based mechanisms. If possible, avoid using `unhandle-exception`, as it can result in restart handlers firing multiple times for the same exception.
 
 ## License
 
