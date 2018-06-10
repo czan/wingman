@@ -195,3 +195,49 @@
                     handlers)
           :else (dgu/rethrow ~ex-sym)))
       (^:once fn [] ~@body))))
+
+(defmacro try'
+  "Like `try`, but with support for restarts.
+
+  For example:
+
+    (try'
+      (slurp \"/a/non/existent/file\")
+      (catch ArithmeticException ex
+        (invoke-restart :filename \"/etc/hostname\"))
+      (finally
+        (println \"bye!\")))"
+  {:style/indent [0]}
+  [& body-and-clauses]
+  (letfn [(has-head? [head form]
+            (and (seq? form)
+                 (= (first form) head)))
+          (wrap-finally [form finally]
+            (if finally
+              `(try ~form ~finally)
+              form))]
+    (loop [stage   :body
+           body    []
+           clauses []
+           finally nil
+           forms   body-and-clauses]
+      (case stage
+        :body  (if (empty? forms)
+                 `(do ~@body)
+                 (condp has-head? (first forms)
+                   'catch (recur :catch body clauses finally forms)
+                   (recur :body (conj body (first forms)) clauses finally (next forms))))
+        :catch (if (empty? forms)
+                 (recur :done body clauses finally forms)
+                 (condp has-head? (first forms)
+                   'catch   (recur :catch body (conj clauses (next (first forms))) finally (next forms))
+                   'finally (recur :done body clauses (first forms) (next forms))
+                   (throw (IllegalArgumentException.
+                           "After the first catch, everything must be a catch or a finally in a try' form."))))
+        :done  (if (empty? forms)
+                 (wrap-finally
+                  `(with-handlers ~clauses
+                     ~@body)
+                  finally)
+                 (throw (IllegalArgumentException.
+                         "Can't have anything following the finally clause in a try' form.")))))))
