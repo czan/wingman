@@ -197,16 +197,19 @@
       (^:once fn [] ~@body))))
 
 (defmacro try'
-  "Like `try`, but with support for restarts.
+  "Like `try`, but registers handlers instead of normal catch clauses.
+  Restarts can be invoked from the defined handlers.
 
   For example:
 
     (try'
-      (slurp \"/a/non/existent/file\")
-      (catch ArithmeticException ex
-        (invoke-restart :filename \"/etc/hostname\"))
+      (send a conj 30)
+      (catch Exception ex
+        (invoke-restart :restart-with-state nil))
       (finally
-        (println \"bye!\")))"
+        (send a conj 40)))
+
+  See `with-handlers` for more detail."
   {:style/indent [0]}
   [& body-and-clauses]
   (letfn [(has-head? [head form]
