@@ -17,7 +17,7 @@ To get the most out of `dont-give-up`, install the CIDER support by loading `cid
 Register restarts with the `with-restarts` macro. This example wraps `inc` into a function which allows us to recover if we have accidentally passed it a non-number value.
 
 ```clojure
-(require '[dont-give-up.core :refer [with-restarts with-handlers invoke-restart]])
+(require '[dont-give-up.sugar :refer [with-restarts with-handlers invoke-restart]])
 (defn restartable-inc [x]
   (with-restarts [(:use-value [value] value)]
     (inc x)))
