@@ -1,6 +1,6 @@
-(ns dont-give-up.core
+(ns wingman.core
   (:refer-clojure :exclude [eval])
-  (:import (dont_give_up.core ScopeResult)))
+  (:import (wingman.core ScopeResult)))
 
 (def ^:private ^:dynamic *handlers* nil)
 (def ^:private ^:dynamic *make-restarts* nil)
@@ -188,6 +188,6 @@
   `:options` (to choose an option from a list of options, provided as
   the first argument after `type`)."
   ([prompt]
-   (throw (IllegalStateException. "In order to prompt the user, a tool must bind #'dont-give-up.core/prompt-user.")))
+   (throw (IllegalStateException. "In order to prompt the user, a tool must bind #'wingman.core/prompt-user.")))
   ([prompt type & args]
-   (throw (IllegalStateException. "In order to prompt the user, a tool must bind #'dont-give-up.core/prompt-user."))))
+   (throw (IllegalStateException. "In order to prompt the user, a tool must bind #'wingman.core/prompt-user."))))

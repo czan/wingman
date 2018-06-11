@@ -1,6 +1,6 @@
-(defproject org.clojars.czan/dont-give-up.core "0.2.1-SNAPSHOT"
+(defproject org.clojars.czan/wingman.core "0.2.1-SNAPSHOT"
   :description "Restartable exception handling for Clojure"
-  :url "https://github.com/czan/dont-give-up"
+  :url "https://github.com/czan/wingman"
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}
   :dependencies [[org.clojure/clojure "1.8.0"]]

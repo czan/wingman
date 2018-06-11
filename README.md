@@ -1,23 +1,23 @@
-# dont-give-up
+# wingman
 
 Restartable exception handling for Clojure, allowing you to recover from exceptions without unwinding the stack.
 
-`dont-give-up` tries hard to interoperate with the existing JVM exception system, to enable code using restarts to easily interoperate with code that uses plain exceptions. Libraries writers can add restarts, and applications can ignore them (using try/catch as usual), or use them (by registering a handler and invoking restarts) as they see fit.
+`wingman` tries hard to interoperate with the existing JVM exception system, to enable code using restarts to easily interoperate with code that uses plain exceptions. Libraries writers can add restarts, and applications can ignore them (using try/catch as usual), or use them (by registering a handler and invoking restarts) as they see fit. Adding restarts to a library does not _require_ applications to change their exception handling strategy, but it will provide them with more options for how to deal with errors.
 
-[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.czan/dont-give-up.svg)](https://clojars.org/org.clojars.czan/dont-give-up)
+[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.czan/wingman.svg)](https://clojars.org/org.clojars.czan/wingman)
 
 ## Setup
 
-Add `[org.clojars.czan/dont-give-up.sugar "0.2.0"]` to your dependency vector.
+Add `[org.clojars.czan/wingman.sugar "0.2.0"]` to your dependency vector.
 
-To get the most out of `dont-give-up`, install the CIDER support by loading `cider-dont-give-up.el` in Emacs and enabling `cider-dont-give-up-minor-mode`.
+To get the most out of `wingman`, install the CIDER support by loading `cider-wingman.el` in Emacs and enabling `cider-wingman-minor-mode`.
 
 ## Usage
 
 Register restarts with the `with-restarts` macro. This example wraps `inc` into a function which allows us to recover if we have accidentally passed it a non-number value.
 
 ```clojure
-(require '[dont-give-up.sugar :refer [with-restarts with-handlers invoke-restart]])
+(require '[wingman.sugar :refer [with-restarts with-handlers invoke-restart]])
 (defn restartable-inc [x]
   (with-restarts [(:use-value [value] value)]
     (inc x)))
@@ -81,15 +81,15 @@ In this way, restarts allow us to separate the _decision_ about how to recover f
 
 ## Why restarts?
 
-Why should we want to use restarts in Clojure? [Chris Houser already gave us a great model for error handling in Clojure](https://www.youtube.com/watch?v=zp0OEDcAro0), why should I use `dont-give-up`? The answer to this question is really about _interactivity_.
+Why should we want to use restarts in Clojure? [Chris Houser already gave us a great model for error handling in Clojure](https://www.youtube.com/watch?v=zp0OEDcAro0), why should I use `wingman`? The answer to this question is really about _interactivity_.
 
-The method of binding dynamic variables for error handling is roughly equivalent to what `dont-give-up` does, but where the plain dynamic-variables approach fails is tool support. There is no way for our tooling to find out what the options are to restart execution, and to present that choice to the user in an interactive session. From the start, the focus in `dont-give-up` has been on the REPL experience. It is primarily about recovering from errors in the REPL, and only then making that same functionality available in code.
+The method of binding dynamic variables for error handling is roughly equivalent to what `wingman` does, but where the plain dynamic-variables approach fails is tool support. There is no way for our tooling to find out what the options are to restart execution, and to present that choice to the user in an interactive session. From the start, the focus in `wingman` has been on the REPL experience. It is primarily about recovering from errors in the REPL, and only then making that same functionality available in code.
 
 ## What about Exceptions?
 
 Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most part this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have _no effect_ on a program unless that program opts-in to using them by installing handlers.
 
-There is the potential for a library/application to break `dont-give-up` by catching things that should be allowed through. All the internal types derive from `java.lang.Throwable`, so as long as you don't catch `Throwable` you should be fine. If you do catch `Throwable`, please ensure that `dont_give_up.core.ScopeResult` is re-thrown.
+There is the potential for a library/application to break `wingman` by catching things that should be allowed through. All the internal types derive from `java.lang.Throwable`, so as long as you don't catch `Throwable` you should be fine. If you do catch `Throwable`, please ensure that `wingman.core.ScopeResult` is re-thrown.
 
 ## Writing restarts
 
@@ -126,7 +126,7 @@ Restarts are invoked in the same dynamic context in which they were defined. The
 
 Multiple restarts with the same name can be defined, but the "deepest" one will be invoked by a call to `invoke-restart`. You can use `find-restarts`, or even `list-restarts`, if you would like to introspect the available restarts.
 
-Restart names can be any value that is not an instance of `dont-give-up.core.Restart`, but it is recommended to use keywords as names.
+Restart names can be any value that is not an instance of `wingman.core.Restart`, but it is recommended to use keywords as names.
 
 ## Writing handlers
 

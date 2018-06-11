@@ -1,6 +1,6 @@
-(ns dont-give-up.core-test
+(ns wingman.core-test
   (:require [clojure.test :refer :all]
-            [dont-give-up.core :refer :all]))
+            [wingman.core :refer :all]))
 
 ;; Handlers have five basic behaviours that we want to test:
 

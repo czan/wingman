@@ -1,6 +1,6 @@
-(ns dont-give-up.nrepl
-  (:require [dont-give-up.sugar :as dgu :refer [with-handlers with-restarts without-handling]]
-            [dont-give-up.core :refer [make-restart call-with-restarts prompt-user]]
+(ns wingman.nrepl
+  (:require [wingman.sugar :as dgu :refer [with-handlers with-restarts without-handling]]
+            [wingman.core :refer [make-restart call-with-restarts prompt-user]]
             [clojure.tools.nrepl.transport :as t]
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
             [clojure.tools.nrepl.middleware.session :refer (session)]
@@ -324,7 +324,7 @@
   (with-redefs [e/queue-eval (fn [session ^Executor executor f]
                                (.execute executor #(f)))]
     (h (assoc msg
-              :eval "dont-give-up.nrepl/handled-eval"
+              :eval "wingman.nrepl/handled-eval"
               ::eval (:eval msg)))))
 
 (defn choose-restart [{:keys [id restart transport] :as msg}]
@@ -364,7 +364,7 @@
 
 (when-let [ns (find-ns 'user)]
   (binding [*ns* ns]
-    (refer 'dont-give-up.nrepl
+    (refer 'wingman.nrepl
            :only ['wrap-core! 'unwrap-core!]
            :rename {'wrap-core!   'dgu-wrap-core!
                     'unwrap-core! 'dgu-unwrap-core!})))

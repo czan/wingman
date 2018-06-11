@@ -1,6 +1,6 @@
-(ns dont-give-up.sugar-test
+(ns wingman.sugar-test
   (:require [clojure.test :refer :all]
-            [dont-give-up.sugar :refer :all]))
+            [wingman.sugar :refer :all]))
 
 (use-fixtures :once (fn [f]
                       (without-handling
@@ -136,5 +136,5 @@
          (with-handlers [(Exception ex
                            (invoke-restart :try-1))]
            (with-restarts [(:try-1 []
-                             (count @#'dont-give-up.core/*restarts*))]
+                             (count @#'wingman.core/*restarts*))]
              (throw (RuntimeException.)))))))

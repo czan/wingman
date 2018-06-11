@@ -1,5 +1,5 @@
-(ns dont-give-up.sugar
-  (:require [dont-give-up.core :as dgu]))
+(ns wingman.sugar
+  (:require [wingman.core :as dgu]))
 
 (defn list-restarts
   {:doc (:doc (meta #'dgu/list-restarts))}
@@ -112,7 +112,7 @@
   \"closest\" one will be invoked by a call to `invoke-restart`.
 
   Restart names can be any value that is not an instance of
-  `dont-give-up.core.Restart`, but it is recommended to use keywords
+  `wingman.core.Restart`, but it is recommended to use keywords
   as names."
   {:style/indent [1 [[:defn]] :form]}
   [restarts & body]
@@ -177,7 +177,7 @@
   different exception types, and the first matching handler will be
   run to handle the exception.
 
-  See `dont-give-up.core/call-with-handler` for more details about
+  See `wingman.core/call-with-handler` for more details about
   handler functions."
   {:style/indent [1 [[:defn]] :form]}
   [handlers & body]
