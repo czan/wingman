@@ -29,7 +29,7 @@
         (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
         (cider-wingman-ask-user id prompt options (cider-current-connection)))))))
 
-(define-derived-mode cider-wingman-restart-prompt-mode cider-stacktrace-mode "CARRY-ON")
+(define-derived-mode cider-wingman-restart-prompt-mode cider-stacktrace-mode "Wingman")
 
 (defun cider-wingman-choose-restart (&optional index)
   (interactive)
