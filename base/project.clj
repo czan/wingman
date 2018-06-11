@@ -1,4 +1,4 @@
-(defproject org.clojars.czan/wingman.core "0.2.1-SNAPSHOT"
+(defproject org.clojars.czan/wingman.base "0.2.1-SNAPSHOT"
   :description "Restartable exception handling for Clojure"
   :url "https://github.com/czan/wingman"
   :license {:name "MIT"

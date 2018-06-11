@@ -1,5 +1,5 @@
 (ns wingman.sugar
-  (:require [wingman.core :as dgu]))
+  (:require [wingman.base :as dgu]))
 
 (defn list-restarts
   {:doc (:doc (meta #'dgu/list-restarts))}
@@ -112,7 +112,7 @@
   \"closest\" one will be invoked by a call to `invoke-restart`.
 
   Restart names can be any value that is not an instance of
-  `wingman.core.Restart`, but it is recommended to use keywords
+  `wingman.base.Restart`, but it is recommended to use keywords
   as names."
   {:style/indent [1 [[:defn]] :form]}
   [restarts & body]
@@ -177,7 +177,7 @@
   different exception types, and the first matching handler will be
   run to handle the exception.
 
-  See `wingman.core/call-with-handler` for more details about
+  See `wingman.base/call-with-handler` for more details about
   handler functions."
   {:style/indent [1 [[:defn]] :form]}
   [handlers & body]

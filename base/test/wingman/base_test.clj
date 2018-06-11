@@ -1,6 +1,6 @@
-(ns wingman.core-test
+(ns wingman.base-test
   (:require [clojure.test :refer :all]
-            [wingman.core :refer :all]))
+            [wingman.base :refer :all]))
 
 ;; Handlers have five basic behaviours that we want to test:
 

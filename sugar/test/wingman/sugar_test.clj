@@ -136,5 +136,5 @@
          (with-handlers [(Exception ex
                            (invoke-restart :try-1))]
            (with-restarts [(:try-1 []
-                             (count @#'wingman.core/*restarts*))]
+                             (count (list-restarts)))]
              (throw (RuntimeException.)))))))

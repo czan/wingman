@@ -89,7 +89,7 @@ The method of binding dynamic variables for error handling is roughly equivalent
 
 Obviously, Clojure executes on a host which doesn't natively support restarts. As a result, restarts have been implemented using JVM Exceptions to manipulate the normal control flow of the program. There are a few edge-cases, but for the most part this should interoperate with native JVM Exceptions, allowing them to pass through uninterrupted if no handlers have been established. This means that adding restarts to a library should have _no effect_ on a program unless that program opts-in to using them by installing handlers.
 
-There is the potential for a library/application to break `wingman` by catching things that should be allowed through. All the internal types derive from `java.lang.Throwable`, so as long as you don't catch `Throwable` you should be fine. If you do catch `Throwable`, please ensure that `wingman.core.ScopeResult` is re-thrown.
+There is the potential for a library/application to break `wingman` by catching things that should be allowed through. All the internal types derive from `java.lang.Throwable`, so as long as you don't catch `Throwable` you should be fine. If you do catch `Throwable`, please ensure that `wingman.base.ScopeResult` is re-thrown.
 
 ## Writing restarts
 
@@ -126,7 +126,7 @@ Restarts are invoked in the same dynamic context in which they were defined. The
 
 Multiple restarts with the same name can be defined, but the "deepest" one will be invoked by a call to `invoke-restart`. You can use `find-restarts`, or even `list-restarts`, if you would like to introspect the available restarts.
 
-Restart names can be any value that is not an instance of `wingman.core.Restart`, but it is recommended to use keywords as names.
+Restart names can be any value that is not an instance of `wingman.base.Restart`, but it is recommended to use keywords as names.
 
 ## Writing handlers
 

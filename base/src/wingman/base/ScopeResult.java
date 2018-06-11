@@ -1,4 +1,4 @@
-package wingman.core;
+package wingman.base;
 
 public class ScopeResult extends Throwable {
     public final Object scopeId;

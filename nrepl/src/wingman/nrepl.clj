@@ -1,6 +1,6 @@
 (ns wingman.nrepl
   (:require [wingman.sugar :as dgu :refer [with-handlers with-restarts without-handling]]
-            [wingman.core :refer [make-restart call-with-restarts prompt-user]]
+            [wingman.base :refer [make-restart call-with-restarts prompt-user]]
             [clojure.tools.nrepl.transport :as t]
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
             [clojure.tools.nrepl.middleware.session :refer (session)]
