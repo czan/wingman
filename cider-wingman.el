@@ -208,16 +208,16 @@ proceed."
     (funcall hook-fn 'nrepl-response-handler-functions #'cider-wingman-handle-nrepl-response)
     (funcall list-fn
              'cider-jack-in-dependencies
-             '("org.clojars.czan/wingman.nrepl" "0.3.0"))
+             '("wingman/wingman.nrepl" "0.3.1"))
     (funcall list-fn
              'cider-jack-in-dependencies-exclusions
-             '("org.clojars.czan/wingman.nrepl" ("org.clojure/clojure" "org.clojure/tools.nrepl")))
+             '("wingman/wingman.nrepl" ("org.clojure/clojure" "org.clojure/tools.nrepl")))
     (funcall list-fn
              'cider-jack-in-nrepl-middlewares
              "wingman.nrepl/middleware")
     (funcall list-fn
              'cider-jack-in-lein-plugins
-             '("org.clojars.czan/wingman.nrepl" "0.3.0"))))
+             '("wingman/wingman.nrepl" "0.3.1"))))
 
 ;;;###autoload
 (with-eval-after-load 'cider
