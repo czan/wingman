@@ -1,6 +1,6 @@
-(ns dont-give-up.interface-test
+(ns dont-give-up.sugar-test
   (:require [clojure.test :refer :all]
-            [dont-give-up.interface :refer :all]))
+            [dont-give-up.sugar :refer :all]))
 
 (use-fixtures :once (fn [f]
                       (without-handling

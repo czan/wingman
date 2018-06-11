@@ -1,4 +1,4 @@
-(ns dont-give-up.interface
+(ns dont-give-up.sugar
   (:require [dont-give-up.core :as dgu]))
 
 (defn list-restarts

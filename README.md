@@ -8,7 +8,7 @@ Restartable exception handling for Clojure, allowing you to recover from excepti
 
 ## Setup
 
-Add `[org.clojars.czan/dont-give-up.interface "0.2.0"]` to your dependency vector.
+Add `[org.clojars.czan/dont-give-up.sugar "0.2.0"]` to your dependency vector.
 
 To get the most out of `dont-give-up`, install the CIDER support by loading `cider-dont-give-up.el` in Emacs and enabling `cider-dont-give-up-minor-mode`.
 

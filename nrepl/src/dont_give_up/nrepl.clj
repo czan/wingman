@@ -1,5 +1,5 @@
 (ns dont-give-up.nrepl
-  (:require [dont-give-up.interface :as dgu :refer [with-handlers with-restarts without-handling]]
+  (:require [dont-give-up.sugar :as dgu :refer [with-handlers with-restarts without-handling]]
             [dont-give-up.core :refer [make-restart call-with-restarts prompt-user]]
             [clojure.tools.nrepl.transport :as t]
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
