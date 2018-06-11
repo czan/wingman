@@ -4,7 +4,7 @@
   (-> project
       (update-in [:dependencies]
                  (fnil into [])
-                 [['org.clojars.czan/wingman.nrepl "0.2.1-SNAPSHOT"]])
+                 [['org.clojars.czan/wingman.nrepl "0.3.0"]])
       (update-in [:repl-options :nrepl-middleware]
                  (fnil into [])
                  (do (require 'wingman.nrepl)
