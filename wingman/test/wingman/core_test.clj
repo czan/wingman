@@ -1,6 +1,6 @@
-(ns wingman.sugar-test
+(ns wingman.core-test
   (:require [clojure.test :refer :all]
-            [wingman.sugar :refer :all]))
+            [wingman.core :refer :all]))
 
 (use-fixtures :once (fn [f]
                       (without-handling

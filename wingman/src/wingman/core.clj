@@ -1,4 +1,4 @@
-(ns wingman.sugar
+(ns wingman.core
   (:require [wingman.base :as dgu]))
 
 (defn list-restarts

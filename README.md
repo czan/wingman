@@ -8,7 +8,7 @@ Restartable exception handling for Clojure, allowing you to recover from excepti
 
 ## Setup
 
-Add `[org.clojars.czan/wingman.sugar "0.2.0"]` to your dependency vector.
+Add `[org.clojars.czan/wingman.core "0.2.0"]` to your dependency vector.
 
 To get the most out of `wingman`, install the CIDER support by loading `cider-wingman.el` in Emacs and enabling `cider-wingman-minor-mode`.
 
@@ -17,7 +17,7 @@ To get the most out of `wingman`, install the CIDER support by loading `cider-wi
 Register restarts with the `with-restarts` macro. This example wraps `inc` into a function which allows us to recover if we have accidentally passed it a non-number value.
 
 ```clojure
-(require '[wingman.sugar :refer [with-restarts with-handlers invoke-restart]])
+(require '[wingman.core :refer [with-restarts with-handlers invoke-restart]])
 (defn restartable-inc [x]
   (with-restarts [(:use-value [value] value)]
     (inc x)))
