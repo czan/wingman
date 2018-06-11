@@ -8,7 +8,7 @@ Restartable exception handling for Clojure, allowing you to recover from excepti
 
 ## Setup
 
-Add `[org.clojars.czan/wingman.core "0.2.0"]` to your dependency vector.
+Add `[wingman "0.2.0"]` to your dependency vector.
 
 To get the most out of `wingman`, install the CIDER support by loading `cider-wingman.el` in Emacs and enabling `cider-wingman-minor-mode`.
 
