@@ -1,4 +1,4 @@
-(defproject wingman/wingman.nrepl "0.3.1-SNAPSHOT"
+(defproject wingman/wingman.nrepl "0.3.1"
   :description "Restartable exception handling for Clojure"
   :url "https://github.com/czan/wingman"
   :license {:name "MIT"
