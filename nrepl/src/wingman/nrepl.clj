@@ -9,6 +9,7 @@
             [clojure.pprint :refer [pprint]])
   (:import java.util.concurrent.Executor))
 
+(def ^:dynamic *execution-lock* nil)
 (def awaiting-restarts (atom {}))
 (def awaiting-prompts (atom {}))
 
@@ -47,6 +48,7 @@
                                                 [(pr-str name) description])
                                               restarts)))
         (loop []
+          (.wait *execution-lock*)
           (let [idx (deref index 100 :timeout)]
             (cond
               (Thread/interrupted) (throw (InterruptedException.))
@@ -76,6 +78,7 @@
                              :options {:type type
                                        :args args}))
        (loop []
+         (.wait *execution-lock*)
          (let [value (deref input 100 timeout)]
            (cond
              (Thread/interrupted) (throw (InterruptedException.))
@@ -320,28 +323,46 @@
           (throw ex))
         (throw ex)))))
 
+(defn- get-lock [session]
+  (locking session
+    (or (-> session meta ::execution-lock)
+        (-> session
+            (alter-meta!
+             assoc ::execution-lock (Object.))
+            ::execution-lock))))
+
+(defn queue-eval [session ^Executor executor f]
+  (.execute executor #(binding [*execution-lock* (get-lock session)]
+                        (locking *execution-lock*
+                          (f)))))
+
 (defn run-with-restart-stuff [h {:keys [op code eval] :as msg}]
-  (with-redefs [e/queue-eval (fn [session ^Executor executor f]
-                               (.execute executor #(f)))]
+  (with-redefs [e/queue-eval queue-eval]
     (h (assoc msg
               :eval "wingman.nrepl/handled-eval"
               ::eval (:eval msg)))))
 
-(defn choose-restart [{:keys [id restart transport] :as msg}]
-  (let [promise (get (deref awaiting-restarts) id)]
-    (if promise
-      (do (deliver promise restart)
-          (t/send transport (response-for msg :status :done)))
-      (t/send transport (response-for msg :status :error)))))
+(defn choose-restart [{:keys [id session restart transport] :as msg}]
+  (let [lock (get-lock session)]
+    (locking lock
+      (let [promise (get (deref awaiting-restarts) id)]
+        (if promise
+          (do (deliver promise restart)
+              (t/send transport (response-for msg :status :done))
+              (.notifyAll lock))
+          (t/send transport (response-for msg :status :error)))))))
 
-(defn answer-prompt [{:keys [id input error transport] :as msg}]
-  (let [promise (get (deref awaiting-prompts) id)]
-    (if promise
-      (do (deliver promise (if input
-                             #(do input)
-                             #(throw (Exception. "Input cancelled"))))
-          (t/send transport (response-for msg :status :done)))
-      (t/send transport (response-for msg :status :error)))))
+(defn answer-prompt [{:keys [id session input error transport] :as msg}]
+  (let [lock (get-lock session)]
+    (locking lock
+      (let [promise (get (deref awaiting-prompts) id)]
+        (if promise
+          (do (deliver promise (if input
+                                 #(do input)
+                                 #(throw (Exception. "Input cancelled"))))
+              (t/send transport (response-for msg :status :done))
+              (.notifyAll lock))
+          (t/send transport (response-for msg :status :error)))))))
 
 (defwrapper unhandled-test-var [test-var v]
   (dgu/without-handling
