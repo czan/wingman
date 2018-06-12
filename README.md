@@ -1,10 +1,8 @@
-# wingman
+# wingman [![wingman](https://img.shields.io/clojars/v/wingman.svg)](https://clojars.org/wingman) [![wingman/base](https://img.shields.io/clojars/v/wingman/base.svg)](https://clojars.org/wingman/base) [![wingman/wingman.nrepl](https://img.shields.io/clojars/v/wingman/wingman.nrepl.svg)](https://clojars.org/wingman/wingman.nrepl)
 
 Restartable exception handling for Clojure, allowing you to recover from exceptions without unwinding the stack.
 
 `wingman` tries hard to interoperate with the existing JVM exception system, to enable code using restarts to easily interoperate with code that uses plain exceptions. Libraries writers can add restarts, and applications can ignore them (using try/catch as usual), or use them (by registering a handler and invoking restarts) as they see fit. Adding restarts to a library does not _require_ applications to change their exception handling strategy, but it will provide them with more options for how to deal with errors.
-
-[![Clojars Project](https://img.shields.io/clojars/v/wingman.svg)](https://clojars.org/wingman)
 
 ## Setup
 
