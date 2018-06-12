@@ -242,7 +242,7 @@ proceed."
     (funcall hook-fn 'nrepl-response-handler-functions #'cider-wingman-handle-nrepl-response)
     (funcall list-fn
              'cider-jack-in-dependencies
-             '("wingman/wingman.nrepl" "0.3.1"))
+             '("wingman/wingman.nrepl" "0.3.2-SNAPSHOT"))
     (funcall list-fn
              'cider-jack-in-dependencies-exclusions
              '("wingman/wingman.nrepl" ("org.clojure/clojure" "org.clojure/tools.nrepl")))
@@ -251,7 +251,7 @@ proceed."
              "wingman.nrepl/middleware")
     (funcall list-fn
              'cider-jack-in-lein-plugins
-             '("wingman/wingman.nrepl" "0.3.1"))))
+             '("wingman/wingman.nrepl" "0.3.2-SNAPSHOT"))))
 
 ;;;###autoload
 (with-eval-after-load 'cider

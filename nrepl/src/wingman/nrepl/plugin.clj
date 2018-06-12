@@ -4,7 +4,7 @@
   (-> project
       (update-in [:dependencies]
                  (fnil into [])
-                 [['wingman/wingman.nrepl "0.3.1"]])
+                 [['wingman/wingman.nrepl "0.3.2-SNAPSHOT"]])
       (update-in [:repl-options :nrepl-middleware]
                  (fnil into [])
                  (do (require 'wingman.nrepl)
