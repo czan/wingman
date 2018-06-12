@@ -4,13 +4,13 @@ Restartable exception handling for Clojure, allowing you to recover from excepti
 
 `wingman` tries hard to interoperate with the existing JVM exception system, to enable code using restarts to easily interoperate with code that uses plain exceptions. Libraries writers can add restarts, and applications can ignore them (using try/catch as usual), or use them (by registering a handler and invoking restarts) as they see fit. Adding restarts to a library does not _require_ applications to change their exception handling strategy, but it will provide them with more options for how to deal with errors.
 
-[![Clojars Project](https://img.shields.io/clojars/v/org.clojars.czan/wingman.svg)](https://clojars.org/org.clojars.czan/wingman)
+[![Clojars Project](https://img.shields.io/clojars/v/wingman.svg)](https://clojars.org/wingman)
 
 ## Setup
 
 Add `[wingman "0.3.0"]` to your dependency vector.
 
-To get the most out of `wingman`, install the CIDER support by loading `cider-wingman.el` in Emacs and enabling `cider-wingman-minor-mode`.
+To get the most out of `wingman`, install the CIDER support by loading `cider-wingman.el` in Emacs.
 
 ## Usage
 
