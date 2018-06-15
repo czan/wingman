@@ -1,28 +1,28 @@
 (ns wingman.core
-  (:require [wingman.base :as dgu]))
+  (:require [wingman.base :as w]))
 
 (defn list-restarts
-  {:doc (:doc (meta #'dgu/list-restarts))}
+  {:doc (:doc (meta #'w/list-restarts))}
   []
-  (dgu/list-restarts))
+  (w/list-restarts))
 
 (defn unhandle-exception
-  {:doc (:doc (meta #'dgu/unhandle-exception))}
+  {:doc (:doc (meta #'w/unhandle-exception))}
   [ex]
-  (dgu/unhandle-exception ex))
+  (w/unhandle-exception ex))
 
 (defn rethrow
-  {:doc (:doc (meta #'dgu/rethrow))}
+  {:doc (:doc (meta #'w/rethrow))}
   [ex]
-  (dgu/rethrow ex))
+  (w/rethrow ex))
 
 (defn find-restarts
   "Return a list of all dynamically-bound restarts with the provided
   name. If passed an instance of `Restart`, search by equality."
   [restart]
-  (if (dgu/restart? restart)
-    (filter #(= % restart) (dgu/list-restarts))
-    (filter #(= (:name %) restart) (dgu/list-restarts))))
+  (if (w/restart? restart)
+    (filter #(= % restart) (w/list-restarts))
+    (filter #(= (:name %) restart) (w/list-restarts))))
 
 (defn find-restart
   "Return the first dynamically-bound restart with the provided name.
@@ -32,7 +32,7 @@
 
 (defn invoke-restart
   "Invoke the given restart, after validating that it is active. If an
-  object satisfying `dgu/restart?` is passed, check that it is active,
+  object satisfying `w/restart?` is passed, check that it is active,
   otherwise invoke the most recently defined restart with the given
   name.
 
@@ -40,14 +40,14 @@
   throw an exception."
   [name & args]
   (if-let [restart (find-restart name)]
-    (apply dgu/invoke-restart restart args)
+    (apply w/invoke-restart restart args)
     (throw (IllegalArgumentException. (str "No restart registered for " name)))))
 
 (defn read-form
   "Read an unevaluated form from the user, and return it for use as a
   restart's arguments;"
   [ex]
-  [(try (read-string (dgu/prompt-user "Enter a value to be used (unevaluated): " :form))
+  [(try (read-string (w/prompt-user "Enter a value to be used (unevaluated): " :form))
         (catch Exception _
           (throw ex)))])
 
@@ -55,7 +55,7 @@
   "Read a form from the user, and return the evaluated result for use
   as a restart's arguments."
   [ex]
-  [(eval (try (read-string (dgu/prompt-user "Enter a value to be used (evaluated): " :form))
+  [(eval (try (read-string (w/prompt-user "Enter a value to be used (evaluated): " :form))
               (catch Exception _
                 (throw ex))))])
 
@@ -64,7 +64,7 @@
   exceptions raised by `thunk` will propagate normally. Note that an
   exception raised by this call will be handled normally."
   [& body]
-  `(dgu/call-without-handling (fn [] ~@body)))
+  `(w/call-without-handling (fn [] ~@body)))
 
 (defmacro with-restarts
   "Run `body`, providing `restarts` as dynamic restarts to handle
@@ -117,7 +117,7 @@
   {:style/indent [1 [[:defn]] :form]}
   [restarts & body]
   (let [ex (gensym "ex")]
-    `(dgu/call-with-restarts
+    `(w/call-with-restarts
          (fn [~ex]
            (remove nil?
                    ~(mapv (fn [restart]
@@ -149,7 +149,7 @@
 
                                     :else
                                     `(when (~applicable? ~ex)
-                                       (dgu/make-restart
+                                       (w/make-restart
                                         ~name
                                         (let [d# ~describe]
                                           (if (string? d#)
@@ -182,7 +182,7 @@
   {:style/indent [1 [[:defn]] :form]}
   [handlers & body]
   (let [ex-sym (gensym "ex")]
-    `(dgu/call-with-handler
+    `(w/call-with-handler
       (fn [~ex-sym]
         (cond
           ~@(mapcat (fn [[type arg & body]]
@@ -193,7 +193,7 @@
                         `((instance? ~type ~ex-sym)
                           nil)))
                     handlers)
-          :else (dgu/rethrow ~ex-sym)))
+          :else (w/rethrow ~ex-sym)))
       (^:once fn [] ~@body))))
 
 (defmacro try'
@@ -209,7 +209,7 @@
       (finally
         (send a conj 40)))
 
-  See `with-handlers` for more detail."
+  See `with-handlers` for more detail about what handlers can do."
   {:style/indent [0]}
   [& body-and-clauses]
   (letfn [(has-head? [head form]
