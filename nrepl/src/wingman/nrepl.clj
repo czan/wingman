@@ -210,7 +210,8 @@
 
 (defn call-with-interactive-handler [body-fn]
   (dgu/without-handling
-   (with-handlers [(Throwable ex (prompt ex))]
+   (with-handlers [(ThreadDeath ex (dgu/rethrow ex))
+                   (Throwable ex (prompt ex))]
      (with-recursive-body retry []
        (call-with-restarts (make-restarts retry "Retry the evaluation.") body-fn)))))
 
