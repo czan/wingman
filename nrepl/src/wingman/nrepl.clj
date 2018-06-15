@@ -1,5 +1,5 @@
 (ns wingman.nrepl
-  (:require [wingman.core :as dgu :refer [with-handlers with-restarts without-handling]]
+  (:require [wingman.core :as w :refer [with-handlers with-restarts without-handling]]
             [wingman.base :refer [make-restart call-with-restarts prompt-user]]
             [clojure.tools.nrepl.transport :as t]
             [clojure.tools.nrepl.misc :refer (response-for uuid)]
@@ -134,7 +134,7 @@
        (concat
         [(make-restart :define
                        (str "Provide a value for " (pr-str var) " and retry the evaluation.")
-                       #(dgu/read-and-eval-form ex)
+                       #(w/read-and-eval-form ex)
                        (fn [value]
                          (if-let [ns (namespace var)]
                            (intern (find-ns (symbol ns))
@@ -164,7 +164,7 @@
      (when-let [class (extract-missing-class-name ex)]
        [(make-restart :import
                       "Provide a package to import the class from and retry the evaluation."
-                      #(dgu/read-form ex)
+                      #(w/read-form ex)
                       (fn [package]
                         (.importClass *ns* (clojure.lang.RT/classForName (str (name package) "." (name class))))
                         (run)))])
@@ -176,7 +176,7 @@
                            (run)))
         (make-restart :require-alias
                       (str "Provide a namespace name, alias it as " (pr-str ns) " and retry the evaluation.")
-                      #(dgu/read-form ex)
+                      #(w/read-form ex)
                       (fn [orig-ns]
                         (require [orig-ns :as ns])
                         (run)))
@@ -196,12 +196,12 @@
      (~name ~@(map second (partition 2 bindings)))))
 
 (defn- prompt [ex]
-  (if-let [restart (prompt-for-restarts ex (dgu/list-restarts))]
+  (if-let [restart (prompt-for-restarts ex (w/list-restarts))]
     (cond
-      (= restart unhandled) (dgu/unhandle-exception ex)
+      (= restart unhandled) (w/unhandle-exception ex)
       (= restart abort) (throw (ThreadDeath.))
       :else (try
-              (apply dgu/invoke-restart restart
+              (apply w/invoke-restart restart
                      (binding [prompt-user prompt-for-input]
                        ((:make-arguments restart))))
               (catch Exception _
@@ -209,8 +209,8 @@
     (throw ex)))
 
 (defn call-with-interactive-handler [body-fn]
-  (dgu/without-handling
-   (with-handlers [(ThreadDeath ex (dgu/rethrow ex))
+  (w/without-handling
+   (with-handlers [(ThreadDeath ex (w/rethrow ex))
                    (Throwable ex (prompt ex))]
      (with-recursive-body retry []
        (call-with-restarts (make-restarts retry "Retry the evaluation.") body-fn)))))
@@ -259,11 +259,11 @@
                                  state)
                         (:ignore-and-replace [state]
                                              :describe "Ignore this action and provide a new state for the agent."
-                                             :arguments #'dgu/read-form
+                                             :arguments #'w/read-form
                                              state)
                         (:replace [state]
                                   :describe "Provide a new state for the agent, then retry the action."
-                                  :arguments #'dgu/read-form
+                                  :arguments #'w/read-form
                                   (retry state args))]
           (apply f state args))))))
 
@@ -277,7 +277,7 @@
                     (:restart-with-state [state]
                        :applicable? #(.startsWith (.getMessage %) "Agent is failed")
                        :describe "Provide a new state to restart the agent and retry this action dispatch."
-                       :arguments #'dgu/read-form
+                       :arguments #'w/read-form
                        (restart-agent agent state)
                        (retry))]
       (apply send-via
@@ -309,10 +309,10 @@
   ;; This function is pretty specialised, because it needs to be aware
   ;; of some internals that usually wouldn't be a concern. Wrapping
   ;; this function affects every time dynamic vars are bound, which is
-  ;; something at dgu does a lot of. So, we can't dynamically bind our
-  ;; restarts until we've already failed. This should work fine in
-  ;; practice, because push-thread-bindings has no restarts of its
-  ;; own.
+  ;; something that wingman does a lot of. So, we can't dynamically
+  ;; bind our restarts until we've already failed. This should work
+  ;; fine in practice, because push-thread-bindings has no restarts of
+  ;; its own.
   (try
     (push-thread-bindings bindings)
     (catch IllegalStateException ex
@@ -366,7 +366,7 @@
           (t/send transport (response-for msg :status :error)))))))
 
 (defwrapper unhandled-test-var [test-var v]
-  (dgu/without-handling
+  (w/without-handling
     (test-var v)))
 
 (def wrappers
@@ -388,8 +388,8 @@
   (binding [*ns* ns]
     (refer 'wingman.nrepl
            :only ['wrap-core! 'unwrap-core!]
-           :rename {'wrap-core!   'dgu-wrap-core!
-                    'unwrap-core! 'dgu-unwrap-core!})))
+           :rename {'wrap-core!   'wingman-wrap-core!
+                    'unwrap-core! 'wingman-unwrap-core!})))
 
 ;; This one we do automatically, because it's ensuring that we don't
 ;; interact with it. If we don't have this, then tests can trigger
