@@ -40,7 +40,7 @@
 (deftest handler-invoking-restart-restarts-computation
   (is (= (call-with-handler (fn [ex]
                               (let [[r] (list-restarts)]
-                                (invoke-restart r)))
+                                (invoke-restart-instance r)))
            #(call-with-restarts (fn [ex]
                                   [(make-restart :use-a "" (constantly nil) (constantly :a))])
               (fn []
@@ -48,7 +48,7 @@
          :a))
   (is (= (call-with-handler (fn [ex]
                               (let [[r] (list-restarts)]
-                                (invoke-restart r :b :c)))
+                                (invoke-restart-instance r :b :c)))
            #(call-with-restarts (fn [ex]
                                   [(make-restart :use-a "" (constantly nil) (fn [x y] [x y]))])
               (fn []

@@ -54,9 +54,9 @@
   []
   *restarts*)
 
-(defn invoke-restart
-  "Use the provided restart, with the given arguments. No attempt is
-  made to validate that the provided restart is current.
+(defn invoke-restart-instance
+  "Invoke the provided restart instance, with the given arguments. No
+  attempt is made to validate that the provided instance is current.
 
   Always throws an exception, will never return normally."
   [restart & args]

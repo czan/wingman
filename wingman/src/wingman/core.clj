@@ -40,7 +40,7 @@
   throw an exception."
   [name & args]
   (if-let [restart (find-restart name)]
-    (apply w/invoke-restart restart args)
+    (apply w/invoke-restart-instance restart args)
     (throw (IllegalArgumentException. (str "No restart registered for " name)))))
 
 (defn read-form
