@@ -28,37 +28,35 @@
                          #(assert false "This should never run")))
 
 (defn prompt-for-restarts [ex restarts]
-  (if (seq restarts)
-    (let [index (promise)
-          id (uuid)
-          {:keys [transport session] :as msg} e/*msg*]
-      (swap! awaiting-restarts assoc id index)
-      (try
-        (t/send transport
-                (response-for msg
-                              :id id
-                              :type "restart/prompt"
-                              :error (loop [ex ex]
-                                       (if-let [cause (.getCause ex)]
-                                         (recur cause)
-                                         (or (.getMessage ex)
-                                             (.getSimpleName (.getClass ex)))))
-                              :causes (analyze-causes ex pprint)
-                              :restarts (mapv (fn [{:keys [name description]}]
-                                                [(pr-str name) description])
-                                              restarts)))
-        (loop []
-          (.wait *execution-lock*)
-          (let [idx (deref index 100 :timeout)]
-            (cond
-              (Thread/interrupted) (throw (InterruptedException.))
-              (= idx :timeout) (recur)
-              :else (or (get restarts idx)
-                        (if (= idx "unhandled") unhandled)
-                        (if (= idx "abort") abort)))))
-        (finally
-          (swap! awaiting-restarts dissoc id))))
-    nil))
+  (let [index (promise)
+        id (uuid)
+        {:keys [transport session] :as msg} e/*msg*]
+    (swap! awaiting-restarts assoc id index)
+    (try
+      (t/send transport
+              (response-for msg
+                            :id id
+                            :type "restart/prompt"
+                            :error (loop [ex ex]
+                                     (if-let [cause (.getCause ex)]
+                                       (recur cause)
+                                       (or (.getMessage ex)
+                                           (.getSimpleName (.getClass ex)))))
+                            :causes (analyze-causes ex pprint)
+                            :restarts (mapv (fn [{:keys [name description]}]
+                                              [(pr-str name) description])
+                                            restarts)))
+      (loop []
+        (.wait *execution-lock*)
+        (let [idx (deref index 100 :timeout)]
+          (cond
+            (Thread/interrupted) (throw (InterruptedException.))
+            (= idx :timeout) (recur)
+            :else (or (get restarts idx)
+                      (if (= idx "unhandled") unhandled)
+                      (if (= idx "abort") abort)))))
+      (finally
+        (swap! awaiting-restarts dissoc id)))))
 
 (defn prompt-for-input
   ([prompt]
