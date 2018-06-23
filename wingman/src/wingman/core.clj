@@ -2,9 +2,9 @@
   (:require [wingman.base :as w]))
 
 (defn list-restarts
-  {:doc (:doc (meta #'w/list-restarts))}
+  {:doc (:doc (meta #'w/list-current-restarts))}
   []
-  (w/list-restarts))
+  (w/list-current-restarts))
 
 (defn unhandle-exception
   {:doc (:doc (meta #'w/unhandle-exception))}
@@ -21,8 +21,8 @@
   name. If passed an instance of `Restart`, search by equality."
   [restart]
   (if (w/restart? restart)
-    (filter #(= % restart) (w/list-restarts))
-    (filter #(= (:name %) restart) (w/list-restarts))))
+    (filter #(= % restart) (w/list-current-restarts))
+    (filter #(= (:name %) restart) (w/list-current-restarts))))
 
 (defn find-restart
   "Return the first dynamically-bound restart with the provided name.
@@ -40,7 +40,7 @@
   throw an exception."
   [name & args]
   (if-let [restart (find-restart name)]
-    (apply w/invoke-restart-instance restart args)
+    (apply w/invoke-current-restart restart args)
     (throw (IllegalArgumentException. (str "No restart registered for " name)))))
 
 (defn read-form

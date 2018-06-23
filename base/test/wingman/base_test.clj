@@ -39,16 +39,16 @@
 
 (deftest handler-invoking-restart-restarts-computation
   (is (= (call-with-handler (fn [ex]
-                              (let [[r] (list-restarts)]
-                                (invoke-restart-instance r)))
+                              (let [[r] (list-current-restarts)]
+                                (invoke-current-restart r)))
            #(call-with-restarts (fn [ex]
                                   [(make-restart :use-a "" (constantly nil) (constantly :a))])
               (fn []
                 (/ 1 0))))
          :a))
   (is (= (call-with-handler (fn [ex]
-                              (let [[r] (list-restarts)]
-                                (invoke-restart-instance r :b :c)))
+                              (let [[r] (list-current-restarts)]
+                                (invoke-current-restart r :b :c)))
            #(call-with-restarts (fn [ex]
                                   [(make-restart :use-a "" (constantly nil) (fn [x y] [x y]))])
               (fn []
@@ -100,15 +100,15 @@
 
 ;; And some other miscellaneous tests.
 
-(deftest list-restarts-returns-empty-outside-of-handlers
+(deftest list-current-restarts-returns-empty-outside-of-handlers
   (call-with-restarts (fn [ex]
                         [(make-restart :r1 nil nil (constantly nil))])
-    #(is (= (map :name (list-restarts))
+    #(is (= (map :name (list-current-restarts))
             []))))
 
-(deftest list-restarts-returns-current-restarts-inside-handlers
+(deftest list-current-restarts-returns-current-restarts-inside-handlers
   (call-with-handler (fn [ex]
-                       (is (= (map :name (list-restarts))
+                       (is (= (map :name (list-current-restarts))
                               [:r1])))
     #(call-with-restarts (fn [ex]
                                 [(make-restart :r1 nil nil (constantly nil))])
@@ -134,7 +134,7 @@
            #(/ 1 0))
          "Caught an exception: Divide by zero"))
   (let [[{:keys [name description behaviour]}]
-        (call-with-handler (fn [ex] (list-restarts))
+        (call-with-handler (fn [ex] (list-current-restarts))
           (fn []
             (call-with-restarts
                 (fn [ex] [(make-restart :use-value

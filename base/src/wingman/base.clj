@@ -48,13 +48,13 @@
   [ex]
   (throw (ScopeResult. nil #(throw ex))))
 
-(defn list-restarts
+(defn list-current-restarts
   "Return a list of all current restarts. This function must only be
   called within the dynamic extent of a handler execution."
   []
   *restarts*)
 
-(defn invoke-restart-instance
+(defn invoke-current-restart
   "Invoke the provided restart instance, with the given arguments. No
   attempt is made to validate that the provided instance is current.
 
