@@ -119,8 +119,8 @@
   with code that uses exceptions to provide fallback behaviour. The
   restart handler mechanism can, in some cases, cause catch clauses to
   be \"skipped\", bypassing exception-based mechanisms. If possible,
-  avoid using `unhandle-exception`, as it can result in restart
-  handlers firing multiple times for the same exception.
+  avoid using `unhandle-exception`, as it can result in handlers
+  firing multiple times for the same exception.
 
   Examples:
 
