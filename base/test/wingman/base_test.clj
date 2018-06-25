@@ -1,5 +1,6 @@
 (ns wingman.base-test
   (:require [clojure.test :refer :all]
+            [clojure.string :as str]
             [wingman.base :refer :all]))
 
 ;; Handlers have five basic behaviours that we want to test:
@@ -129,20 +130,54 @@
                     (fn []
                       (throw (Exception.))))))))
 
+(defn read-docstring [string]
+  (with-open [stream (clojure.lang.LineNumberingPushbackReader.
+                      (java.io.StringReader. string))]
+    (loop [state nil, to-eval []]
+      (let [c (.read stream)]
+        (if (= c -1)
+          to-eval
+          (condp = (char c)
+            \newline (recur nil to-eval)
+            \space (recur (when (= :text state) :text) to-eval)
+            \> (cond
+                 (nil? state)
+                 (let [form (read stream)]
+                   (recur nil (conj to-eval form)))
+
+                 (= state ";;=")
+                 (let [form (read stream)]
+                   (assert (not-empty to-eval)
+                           "Attempting to check result of an expression before anything has been evaluated")
+                   (recur nil (conj (pop to-eval)
+                                    (if (= form 'throws)
+                                      `(is (~'thrown?
+                                            ~(read stream)
+                                            ~(last to-eval)))
+                                      `(is (~'=
+                                            ~form
+                                            ~(last to-eval)))))))
+
+                 :else
+                 (recur state to-eval))
+            \; (recur (str state \;) to-eval)
+            \= (recur (str state \=) to-eval)
+            (recur :text to-eval)))))))
+
+(defn check-docstring-examples [v]
+  (let [ns (:ns (meta v))
+        sym (gensym (str ns))
+        docstring (:doc (meta v))]
+    (when (not-empty docstring)
+      (binding [*ns* (create-ns sym)]
+        (try
+          (clojure.core/refer-clojure)
+          (require `[~(ns-name ns) :refer :all])
+          (doseq [to-eval (read-docstring docstring)]
+            (eval to-eval))
+          (finally
+            (remove-ns sym)))))))
+
 (deftest docstring-examples
-  (is (= (call-with-handler #(str "Caught an exception: " (.getMessage %))
-           #(/ 1 0))
-         "Caught an exception: Divide by zero"))
-  (let [[{:keys [name description behaviour]}]
-        (call-with-handler (fn [ex] (list-current-restarts))
-          (fn []
-            (call-with-restarts
-                (fn [ex] [(make-restart :use-value
-                                       (str "Use this string instead of " (.getMessage ex))
-                                       #(prompt-user "Raw string to use: ")
-                                       identity)])
-              #(/ 1 0))))]
-    (is (= name :use-value))
-    (is (= description "Use this string instead of Divide by zero"))
-    ;; we can't test make-behaviour, because the instance will be different
-    (is (= behaviour identity))))
+  (doseq [v (vals (ns-publics 'wingman.base))]
+    (check-docstring-examples v)))
