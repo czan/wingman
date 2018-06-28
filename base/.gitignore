@@ -9,3 +9,6 @@ pom.xml.asc
 /.nrepl-port
 .hgignore
 .hg/
+/out
+/.cljs_node_repl
+/testing.js

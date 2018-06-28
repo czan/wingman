@@ -1,6 +1,8 @@
 (ns wingman.base
   (:refer-clojure :exclude [eval])
-  (:import (wingman.base ScopeResult)))
+  #?@(:clj [(:import (wingman.base ScopeResult))]))
+
+#?(:cljs (deftype ScopeResult [scopeId thunk]))
 
 (def ^:private ^:dynamic *handlers* nil)
 (def ^:private ^:dynamic *make-restarts* nil)
@@ -122,7 +124,8 @@
              (handled-value id (handler ex)))
            (catch ScopeResult t
              (run-or-throw nil t))
-           (catch Throwable t
+           (catch #?(:clj Throwable
+                     :cljs :default) t
              (thrown-value id t))))))
 
 (def ^:private next-id (volatile! 0))
@@ -208,7 +211,8 @@
           (thunk)
           (catch ScopeResult t
             (throw t))
-          (catch Throwable t
+          (catch #?(:clj Throwable
+                     :cljs :default) t
             (rethrow t))))
       (catch ScopeResult t
         (run-or-throw id t)))))
@@ -256,7 +260,8 @@
           (thunk)
           (catch ScopeResult t
             (throw t))
-          (catch Throwable t
+          (catch #?(:clj Throwable
+                     :cljs :default) t
             (rethrow t))))
       (catch ScopeResult t
         (run-or-throw id t)))))
@@ -286,6 +291,10 @@
         (prompt-user \"Enter a form to evaluate:\" :form))
     ;;=> \"prompting for :form with prompt Enter a form to evaluate:\""
   ([prompt]
-   (throw (IllegalStateException. "In order to prompt the user, a tool must bind #'wingman.base/prompt-user.")))
+   (throw (#?(:clj IllegalStateException.
+              :cljs js/Error.)
+           "In order to prompt the user, a tool must bind #'wingman.base/prompt-user.")))
   ([prompt type & args]
-   (throw (IllegalStateException. "In order to prompt the user, a tool must bind #'wingman.base/prompt-user."))))
+   (throw (#?(:clj IllegalStateException.
+              :cljs js/Error.)
+           "In order to prompt the user, a tool must bind #'wingman.base/prompt-user."))))
