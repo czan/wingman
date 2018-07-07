@@ -1,83 +1,97 @@
 (ns wingman.core-test
-  (:require [clojure.test :refer :all]
-            [wingman.core :refer :all]))
+  (:require [clojure.test :refer [deftest is #?@(:clj [use-fixtures])]]
+            [wingman.core :as sut]
+            #?@(:cljs [[doo.runner :refer-macros [doo-tests]]])))
 
-(use-fixtures :once (fn [f]
-                      (without-handling
-                        (f))))
+#?(:cljs
+   (def NullPointerException js/TypeError))
+#?(:cljs
+   (def Exception js/Error))
+
+(defn throw-exception []
+  (let [x nil]
+    (x)))
+
+#?(:clj
+   (use-fixtures :once (fn [f]
+                         (sut/without-handling
+                          (f)))))
 
 (deftest handlers-should-use-the-first-matching-clause
   (is (= :value
-         (with-handlers [(ArithmeticException ex
-                           :value)
-                         (Exception ex)]
-           (/ 1 0))))
+         (sut/with-handlers [(NullPointerException ex
+                               :value)
+                             (Exception ex)]
+           (throw-exception))))
   (is (= nil
-         (with-handlers [(Exception ex)
-                         (ArithmeticException ex
-                           :value)]
-           (/ 1 0)))))
+         (sut/with-handlers [(Exception ex)
+                             (NullPointerException ex
+                               :value)]
+           (throw-exception)))))
 
 (deftest handlers-should-work-even-above-try-catch
   (is (= 11
-         (with-handlers [(Exception ex
-                           (invoke-restart :use-value 10))]
+         (sut/with-handlers [(Exception, ex
+                               (sut/invoke-restart :use-value 10))]
            (try
-             (+ (with-restarts [(:use-value [value]
-                                  value)]
-                  (throw (Exception.)))
+             (+ (sut/with-restarts [(:use-value [value]
+                                      value)]
+                  (throw-exception))
                 1)
              (catch Exception ex))))))
 
 (deftest restarts-from-exceptions-should-work
   (is (= 10
-         (with-handlers [(Exception ex
-                           (invoke-restart :use-value 10))]
-           (with-restarts [(:use-value [value] value)]
-             (throw (RuntimeException.)))))))
+         (sut/with-handlers [(Exception ex
+                               (sut/invoke-restart :use-value 10))]
+           (sut/with-restarts [(:use-value [value] value)]
+             (throw-exception))))))
 
 (deftest restarts-should-bubble-up-if-unhandled
   (is (= 10
-         (with-handlers [(Exception ex (invoke-restart :use-value 10))]
-           (with-handlers [(ArithmeticException ex)]
-             (with-restarts [(:use-value [value] value)]
-               (throw (RuntimeException.)))))))
+         (sut/with-handlers [(Exception ex
+                               (sut/invoke-restart :use-value 10))]
+           (sut/with-handlers [(NullPointerException ex)]
+             (sut/with-restarts [(:use-value [value] value)]
+               (throw (Exception.)))))))
   (is (= 10
-         (with-handlers [(Exception ex (invoke-restart :use-value 10))]
-           (with-handlers [(ArithmeticException ex (rethrow ex))]
-             (with-restarts [(:use-value [value] value)]
-               (throw (ArithmeticException.))))))))
+         (sut/with-handlers [(Exception ex
+                               (sut/invoke-restart :use-value 10))]
+           (sut/with-handlers [(NullPointerException ex
+                                 (sut/rethrow ex))]
+             (sut/with-restarts [(:use-value [value] value)]
+               (throw (Exception.))))))))
 
 (deftest restarts-should-use-the-most-specific-named-restart
   (is (= 10
-         (with-handlers [(Exception ex (invoke-restart :use-default))]
-           (with-restarts [(:use-default [] 13)]
-             (with-restarts [(:use-default [] 10)]
-               (throw (RuntimeException.))))))))
+         (sut/with-handlers [(Exception ex (sut/invoke-restart :use-default))]
+           (sut/with-restarts [(:use-default [] 13)]
+             (sut/with-restarts [(:use-default [] 10)]
+               (throw-exception)))))))
 
 (deftest restarts-should-restart-from-the-right-point
   (is (= 0
-         (with-handlers [(Exception ex (invoke-restart :use-zero))]
-           (with-restarts [(:use-zero [] 0)]
-             (inc (with-restarts [(:use-one [] 1)]
-                    (throw (Exception.)))))))))
+         (sut/with-handlers [(Exception ex (sut/invoke-restart :use-zero))]
+           (sut/with-restarts [(:use-zero [] 0)]
+             (inc (sut/with-restarts [(:use-one [] 1)]
+                    (throw-exception))))))))
 
 (deftest handlers-returning-values-should-return-at-the-right-place
   (is (= 2
-         (with-handlers [(RuntimeException ex 2)]
-           (+ 1 (with-handlers [(ArithmeticException ex)]
-                  (throw (RuntimeException.))))))))
+         (sut/with-handlers [(Exception ex 2)]
+           (+ 300 (sut/with-handlers [(NullPointerException ex)]
+                    (throw (Exception.))))))))
 
 (deftest handlers-should-not-modify-exceptions-when-not-handling
   (let [ex (Exception.)]
     (is (= ex
            (try
-             (with-handlers [(ArithmeticException ex 10)]
+             (sut/with-handlers [(NullPointerException ex 10)]
                (throw ex))
              (catch Exception e e))))
     (is (= ex
            (try
-             (with-handlers [(ArithmeticException ex 10)]
+             (sut/with-handlers [(NullPointerException ex 10)]
                (throw ex))
              (catch Exception e e))))))
 
@@ -85,56 +99,46 @@
   (let [ex (Exception.)]
     (is (= ex
            (try
-             (with-restarts [(:use-value [value] value)]
+             (sut/with-restarts [(:use-value [value] value)]
                (throw ex))
              (catch Exception e e))))
     (is (= ex
            (try
-             (with-restarts [(:use-value [value] value)]
-               (with-restarts [(:use-value [value] value)]
+             (sut/with-restarts [(:use-value [value] value)]
+               (sut/with-restarts [(:use-value [value] value)]
                  (throw ex)))
              (catch Exception e e))))))
 
 (deftest handlers-throwing-exceptions-should-be-catchable
   (is (= Exception
          (try
-           (with-handlers [(RuntimeException ex (throw (Exception.)))]
-             (throw (RuntimeException.)))
+           (sut/with-handlers [(NullPointerException ex (throw (Exception.)))]
+             (throw-exception))
            (catch Exception ex
-             (.getClass ex)))))
+             (type ex)))))
   (is (= Exception
          (try
-           (with-handlers [(RuntimeException ex (throw (Exception.)))]
-             (throw (RuntimeException.)))
+           (sut/with-handlers [(NullPointerException ex (throw (Exception.)))]
+             (sut/with-restarts [(:use-value [value] value)]
+               (throw-exception)))
            (catch Exception ex
-             (.getClass ex)))))
+             (type ex)))))
   (is (= Exception
-         (try
-           (with-handlers [(RuntimeException ex (throw (Exception.)))]
-             (with-restarts [(:use-value [value] value)]
-               (throw (RuntimeException.))))
-           (catch Exception ex
-             (.getClass ex)))))
-  (is (= Exception
-         (try
-           (with-handlers [(RuntimeException ex (throw (Exception.)))]
-             (with-restarts [(:use-value [value] value)]
-               (throw (RuntimeException.))))
-           (catch Exception ex
-             (.getClass ex)))))
-  (is (= Exception
-         (with-handlers [(Exception ex 10)]
+         (sut/with-handlers [(Exception ex 10)]
            (try
-             (with-handlers [(RuntimeException ex (throw (Exception.)))]
-               (with-restarts [(:use-value [value] value)]
-                 (throw (RuntimeException.))))
+             (sut/with-handlers [(NullPointerException ex (throw (Exception.)))]
+               (sut/with-restarts [(:use-value [value] value)]
+                 (throw-exception)))
              (catch Exception ex
-               (.getClass ex)))))))
+               (type ex)))))))
 
 (deftest restarts-should-go-away-during-handler
   (is (= 0
-         (with-handlers [(Exception ex
-                           (invoke-restart :try-1))]
-           (with-restarts [(:try-1 []
-                             (count (list-restarts)))]
-             (throw (RuntimeException.)))))))
+         (sut/with-handlers [(Exception ex
+                               (sut/invoke-restart :try-1))]
+           (sut/with-restarts [(:try-1 []
+                                 (count (sut/list-restarts)))]
+             (throw-exception))))))
+
+#?(:cljs
+   (doo-tests 'wingman.core-test))

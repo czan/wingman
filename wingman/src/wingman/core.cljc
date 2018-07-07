@@ -2,17 +2,20 @@
   (:require [wingman.base :as w]))
 
 (defn list-restarts
-  {:doc (:doc (meta #'w/list-current-restarts))}
+  #?@(:clj
+      [{:doc (:doc (meta #'w/list-current-restarts))}])
   []
   (w/list-current-restarts))
 
 (defn unhandle-exception
-  {:doc (:doc (meta #'w/unhandle-exception))}
+  #?@(:clj
+      [{:doc (:doc (meta #'w/unhandle-exception))}])
   [ex]
   (w/unhandle-exception ex))
 
 (defn rethrow
-  {:doc (:doc (meta #'w/rethrow))}
+  #?@(:clj
+      [{:doc (:doc (meta #'w/rethrow))}])
   [ex]
   (w/rethrow ex))
 
@@ -41,40 +44,50 @@
   [name & args]
   (if-let [restart (find-restart name)]
     (apply w/invoke-current-restart restart args)
-    (throw (IllegalArgumentException. (str "No restart registered for " name)))))
+    (throw (#?(:clj IllegalArgumentException.
+               :cljs js/Error.)
+            (str "No restart registered for " name)))))
 
 (defn read-form
   "Read an unevaluated form from the user, and return it for use as a
   restart's arguments;"
   [ex]
-  [(try (read-string (w/prompt-user "Enter a value to be used (unevaluated): " :form))
-        (catch Exception _
-          (throw ex)))])
+  #?(:clj
+     [(try (read-string (w/prompt-user "Enter a value to be used (unevaluated): " :form))
+           (catch Exception _
+             (throw ex)))]
+     :cljs
+     (throw (js/Error. "Cannot read a form in a cljs environment!"))))
 
 (defn read-and-eval-form
   "Read a form from the user, and return the evaluated result for use
   as a restart's arguments."
   [ex]
-  [(eval (try (read-string (w/prompt-user "Enter a value to be used (evaluated): " :form))
-              (catch Exception _
-                (throw ex))))])
+  #?(:clj
+     [(eval (try (read-string (w/prompt-user "Enter a value to be used (evaluated): " :form))
+                 (catch Exception _
+                   (throw ex))))]
+     :cljs
+     (throw (js/Error. "Cannot read and eval a form in a cljs environment!"))))
 
-(defmacro without-handling
-  "Run `body` with no active handlers and no current restarts. Any
+#?(:clj
+   (defmacro without-handling
+     "Run `body` with no active handlers and no current restarts. Any
   exceptions raised by `thunk` will propagate normally. Note that an
   exception raised by this call will be handled normally."
-  [& body]
-  `(w/call-without-handling (fn [] ~@body)))
+     [& body]
+     `(w/call-without-handling (fn [] ~@body))))
 
-(defmacro with-restarts
-  "Run `body`, providing `restarts` as dynamic restarts to handle
+#?(:clj
+   (defmacro with-restarts
+     "Run `body`, providing `restarts` as dynamic restarts to handle
   errors which occur while executing `body`.
 
   For example, a simple restart to use a provided value would look
   like this:
 
-      (with-restarts [(:use-value [value] value)]
-        (/ 1 0))
+    (with-restarts [(:use-value [value] value)]
+      (/ 1 0))
 
   This would allow a handler to invoke `(invoke-restart :use-value 10)`
   to recover from this exception, and to return `10` as the result of
@@ -98,11 +111,11 @@
 
   Here is an example of the above restart using these attributes:
 
-      (with-restarts [(:use-value [value]
-                         :describe \"Provide a value to use.\"
-                         :arguments #'read-unevaluated-value
-                         value)]
-        (/ 1 0))
+    (with-restarts [(:use-value [value]
+                       :describe \"Provide a value to use.\"
+                       :arguments #'read-unevaluated-value
+                       value)]
+      (/ 1 0))
 
   Restarts are invoked in the same dynamic context in which they were
   defined. The stack is unwound to the level of the `with-restarts`
@@ -114,10 +127,10 @@
   Restart names can be any value that is not an instance of
   `wingman.base.Restart`, but it is recommended to use keywords
   as names."
-  {:style/indent [1 [[:defn]] :form]}
-  [restarts & body]
-  (let [ex (gensym "ex")]
-    `(w/call-with-restarts
+     {:style/indent [1 [[:defn]] :form]}
+     [restarts & body]
+     (let [ex (gensym "ex")]
+       `(w/call-with-restarts
          (fn [~ex]
            (remove nil?
                    ~(mapv (fn [restart]
@@ -160,18 +173,19 @@
                                         (fn ~(vec args)
                                           ~@body))))))))
                           restarts)))
-       (^:once fn [] ~@body))))
+         (^:once fn [] ~@body)))))
 
-(defmacro with-handlers
-  "Run `body`, using `handlers` to handle any exceptions which are
+#?(:clj
+   (defmacro with-handlers
+     "Run `body`, using `handlers` to handle any exceptions which are
   raised during `body`'s execution.
 
   For example, here is how to use `with-handlers` to replace
   try/catch:
 
-      (with-handlers [(Exception ex (.getMessage ex))]
-        (/ 1 0))
-      ;; => \"Divide by zero\"
+    (with-handlers [(Exception ex (.getMessage ex))]
+      (/ 1 0))
+    ;; => \"Divide by zero\"
 
   Similarly to try/catch, multiple handlers can be defined for
   different exception types, and the first matching handler will be
@@ -179,68 +193,79 @@
 
   See `wingman.base/call-with-handler` for more details about
   handler functions."
-  {:style/indent [1 [[:defn]] :form]}
-  [handlers & body]
-  (let [ex-sym (gensym "ex")]
-    `(w/call-with-handler
-      (fn [~ex-sym]
-        (cond
-          ~@(mapcat (fn [[type arg & body]]
-                      (if (seq body)
-                        `((instance? ~type ~ex-sym)
-                          (let [~arg ~ex-sym]
-                            ~@body))
-                        `((instance? ~type ~ex-sym)
-                          nil)))
-                    handlers)
-          :else (w/rethrow ~ex-sym)))
-      (^:once fn [] ~@body))))
+     {:style/indent [1 [[:defn]] :form]}
+     [handlers & body]
+     (let [ex-sym (gensym "ex")]
+       `(w/call-with-handler
+         (fn [~ex-sym]
+           (cond
+             ~@(mapcat (fn [[type arg & body]]
+                         (let [guard (if (= :default type)
+                                       :default
+                                       `(instance? ~type ~ex-sym))
+                               body (when (seq body)
+                                      `(let [~arg ~ex-sym]
+                                         ~@body))]
+                           `(~guard ~body)))
+                       handlers)
+             :else (w/rethrow ~ex-sym)))
+         (^:once fn [] ~@body)))))
 
-(defmacro try'
-  "Like `try`, but registers handlers instead of normal catch clauses.
+#?(:clj
+   (defmacro try'
+     "Like `try`, but registers handlers instead of normal catch clauses.
   Restarts can be invoked from the defined handlers.
 
   For example:
 
-    (try'
-      (send a conj 30)
-      (catch Exception ex
-        (invoke-restart :restart-with-state nil))
-      (finally
-        (send a conj 40)))
+    (defn div [num dem]
+      (with-restarts [(:use-denominator [value]
+                        :describe \"Provide a new denominator.\"
+                        :arguments #'read-and-eval-form
+                        (div num value))]
+        (/ num dem)))
+    ;;=> #'user/div
 
-  See `with-handlers` for more detail about what handlers can do."
-  {:style/indent [0]}
-  [& body-and-clauses]
-  (letfn [(has-head? [head form]
-            (and (seq? form)
-                 (= (first form) head)))
-          (wrap-finally [form finally]
-            (if finally
-              `(try ~form ~finally)
-              form))]
-    (loop [stage   :body
-           body    []
-           clauses []
-           finally nil
-           forms   body-and-clauses]
-      (case stage
-        :body  (if (empty? forms)
-                 `(do ~@body)
-                 (condp has-head? (first forms)
-                   'catch (recur :catch body clauses finally forms)
-                   (recur :body (conj body (first forms)) clauses finally (next forms))))
-        :catch (if (empty? forms)
-                 (recur :done body clauses finally forms)
-                 (condp has-head? (first forms)
-                   'catch   (recur :catch body (conj clauses (next (first forms))) finally (next forms))
-                   'finally (recur :done body clauses (first forms) (next forms))
-                   (throw (IllegalArgumentException.
-                           "After the first catch, everything must be a catch or a finally in a try' form."))))
-        :done  (if (empty? forms)
-                 (wrap-finally
-                  `(with-handlers ~clauses
-                     ~@body)
-                  finally)
-                 (throw (IllegalArgumentException.
-                         "Can't have anything following the finally clause in a try' form.")))))))
+    (try'
+      (div 10 0)
+      (catch ArithmeticException ex
+        (invoke-restart :use-denominator 3)))
+    ;;=> 10/3
+
+  See `with-handlers` for more detail about handlers."
+     {:style/indent [0]}
+     [& body-and-clauses]
+     (letfn [(has-head? [head form]
+               (and (seq? form)
+                    (= (first form) head)))
+             (wrap-finally [form finally]
+               (if finally
+                 `(try ~form ~finally)
+                 form))]
+       (loop [stage   :body
+              body    []
+              clauses []
+              finally nil
+              forms   body-and-clauses]
+         (case stage
+           :body  (if (empty? forms)
+                    `(do ~@body)
+                    (condp has-head? (first forms)
+                      'catch (recur :catch body clauses finally forms)
+                      (recur :body (conj body (first forms)) clauses finally (next forms))))
+           :catch (if (empty? forms)
+                    (recur :done body clauses finally forms)
+                    (condp has-head? (first forms)
+                      'catch   (recur :catch body (conj clauses (next (first forms))) finally (next forms))
+                      'finally (recur :done body clauses (first forms) (next forms))
+                      (throw (#?(:clj IllegalArgumentException.
+                                 :cljs js/Error.)
+                              "After the first catch, everything must be a catch or a finally in a try' form."))))
+           :done  (if (empty? forms)
+                    (wrap-finally
+                     `(with-handlers ~clauses
+                        ~@body)
+                     finally)
+                    (throw (#?(:clj IllegalArgumentException.
+                               :cljs js/Error.)
+                            "Can't have anything following the finally clause in a try' form."))))))))
