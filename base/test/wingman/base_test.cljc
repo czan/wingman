@@ -4,9 +4,14 @@
             [wingman.base :as sut]
             #?@(:cljs [[doo.runner :refer-macros [doo-tests]]])))
 
+#?(:cljs
+   (def NullPointerException js/TypeError))
+#?(:cljs
+   (def Exception js/Error))
+
 (defn throw-exception []
-  #?(:clj (/ 1 0)
-     :cljs (throw (js/Error. "Divide by zero"))))
+  (let [x nil]
+    (x)))
 
 ;; Handlers have five basic behaviours that we want to test:
 
@@ -31,20 +36,14 @@
 
 (deftest handler-thrown-exceptions-are-thrown
   (is (thrown-with-msg?
-       #?(:clj Exception
-          :cljs js/Error)
+       Exception
        #"THIS IS A TEST EXCEPTION"
-       (sut/call-with-handler (fn [ex] (throw (#?(:clj Exception.
-                                                 :cljs js/Error.)
-                                              "THIS IS A TEST EXCEPTION")))
+       (sut/call-with-handler (fn [ex] (throw (Exception. "THIS IS A TEST EXCEPTION")))
          #(throw-exception))))
   (is (thrown-with-msg?
-       #?(:clj Exception
-          :cljs js/Error)
+       Exception
        #"THIS IS A TEST EXCEPTION"
-       (sut/call-with-handler (fn [ex] (throw (#?(:clj Exception.
-                                                 :cljs js/Error.)
-                                              "THIS IS A TEST EXCEPTION")))
+       (sut/call-with-handler (fn [ex] (throw (Exception. "THIS IS A TEST EXCEPTION")))
          #(sut/call-with-restarts (fn [ex])
             (fn [] (throw-exception)))))))
 
@@ -80,7 +79,7 @@
            (fn []
              (try
                (throw-exception)
-               (catch #?(:clj Exception :cljs :default) ex
+               (catch Exception ex
                  :a))))
          :a))
   (is (= (sut/call-with-handler (fn [ex] (sut/unhandle-exception ex))
@@ -88,7 +87,7 @@
               (sut/call-with-restarts (fn [ex] [])
                 (fn []
                   (throw-exception)))
-              (catch #?(:clj Exception :cljs :default) ex
+              (catch Exception ex
                 :b)))
          :b)))
 
@@ -107,10 +106,8 @@
            #(sut/call-with-handler (fn [ex] (sut/rethrow ex))
               (fn [] (throw-exception))))
          :a))
-  (is (thrown-with-msg?
-       #?(:clj ArithmeticException
-          :cljs js/Error)
-       #"Divide by zero"
+  (is (thrown?
+       NullPointerException
        (sut/call-with-handler (fn [ex] (sut/rethrow ex))
          #(throw-exception)))))
 
@@ -132,24 +129,18 @@
          (throw-exception)))))
 
 (deftest rethrow-throws-exceptions
-  (is (thrown? #?(:clj Exception
-                  :cljs js/Error)
-               (sut/rethrow #?(:clj (Exception.)
-                               :cljs (js/Error.)))))
-  (is (thrown? #?(:clj Exception
-                  :cljs js/Error)
+  (is (thrown? Exception
+               (sut/rethrow (Exception.))))
+  (is (thrown? Exception
                (sut/call-with-handler (fn [ex]
                                         (sut/rethrow ex))
-                 #(throw #?(:clj (Exception.)
-                            :cljs (js/Error.))))))
-  (is (thrown? #?(:clj Exception
-                  :cljs js/Error)
+                 #(throw (Exception.)))))
+  (is (thrown? Exception
                (sut/call-with-handler (fn [ex]
                                         (sut/rethrow ex))
                  #(sut/call-with-restarts (fn [ex] [])
                     (fn []
-                      (throw #?(:clj (Exception.)
-                                :cljs (js/Error.)))))))))
+                      (throw (Exception.))))))))
 
 #?(:clj
    (defn read-docstring [string]
