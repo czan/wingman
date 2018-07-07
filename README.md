@@ -25,15 +25,15 @@ Register restarts with the `with-restarts` macro. This example wraps `inc` into 
 Now, we can map this function over a list with some non-number values:
 
 ```clojure
-(into [] (map restartable-inc [1 2 3 :a :b nil]))
+(into [] (map restartable-inc) [1 2 3 :a :b nil])
 ;;=> ClassCastException: clojure.lang.Keyword cannot be cast to java.lang.Number
 ```
 
-Note that the behaviour of the function is unchanged when there is no appropriate handler established. Adding restarts does nothing if there aren't any appropriate handlers registered. However, if we wrap it in a `with-handlers` form:
+Note that the behaviour of this function is the same as `inc` when there is no appropriate handler established. Adding restarts does nothing if there are no handlers registered. However, if we wrap it in a `with-handlers` form:
 
 ```clojure
 (with-handlers [(Exception ex (invoke-restart :use-value nil))]
-  (into [] (map restartable-inc [1 2 3 :a :b nil 10 11 12])))
+  (into [] (map restartable-inc) [1 2 3 :a :b nil 10 11 12]))
 ;;=> [2 3 4 nil nil nil 11 12 13]
 ```
 
@@ -42,11 +42,14 @@ When an error is encountered, the handler provided by `with-handlers` is called 
 It is also possible to have multiple layers of restarts to choose from. For example, we might define our own `restartable-map`, which lets us skip items that throw exceptions:
 
 ```clojure
-(defn restartable-map [f s]
-  (lazy-seq
-    (when (seq s)
-      (with-restarts [(:skip [] (restartable-map f (rest s)))]
-        (cons (f (first s)) (restartable-map f (rest s)))))))
+(defn restartable-map [f]
+  (fn [xf]
+    (fn
+      ([] (xf))
+      ([result] (xf result))
+      ([result item]
+       (with-restarts [(:skip [] result)]
+         (xf result (f item)))))))
 ;;=> #'user/restartable-map
 ```
 
@@ -54,7 +57,7 @@ Now we can run the same example as before:
 
 ```clojure
 (with-handlers [(Exception ex (invoke-restart :use-value nil))]
-  (into [] (restartable-map restartable-inc [1 2 3 :a :b nil 10 11 12])))
+  (into [] (restartable-map restartable-inc) [1 2 3 :a :b nil 10 11 12]))
 ;;=> [2 3 4 nil nil nil 11 12 13]
 ```
 
@@ -62,7 +65,7 @@ Or, we can change our strategy and decide to skip failing values:
 
 ```clojure
 (with-handlers [(Exception ex (invoke-restart :skip))]
-  (into [] (restartable-map restartable-inc [1 2 3 :a :b nil 10 11 12])))
+  (into [] (restartable-map restartable-inc) [1 2 3 :a :b nil 10 11 12]))
 ;;=> [2 3 4 11 12 13]
 ```
 
@@ -71,8 +74,8 @@ Or we can decide that we want to replace `nil` with `0`, and skip everything els
 ```clojure
 (with-handlers [(NullPointerException ex (invoke-restart :use-value 0))
                 (Exception ex (invoke-restart :skip))]
-  (into [] (restartable-map restartable-inc [1 2 3 :a :b nil 10 11 12])))
-;;=> [2 3 4 11 12 13]
+  (into [] (restartable-map restartable-inc) [1 2 3 :a :b nil 10 11 12]))
+;;=> [2 3 4 0 11 12 13]
 ```
 
 In this way, restarts allow us to separate the _decision_ about how to recover from an error from the _mechanics_ of actually recovering from the error. This enables higher-level code to make decisions about how lower level functions should recover from their errors, without unwinding the stack.
@@ -81,7 +84,9 @@ In this way, restarts allow us to separate the _decision_ about how to recover f
 
 Why should we want to use restarts in Clojure? [Chris Houser already gave us a great model for error handling in Clojure](https://www.youtube.com/watch?v=zp0OEDcAro0), why should I use `wingman`? The answer to this question is really about _interactivity_.
 
-The method of binding dynamic variables for error handling is roughly equivalent to what `wingman` does, but where the plain dynamic-variables approach fails is tool support. There is no way for our tooling to find out what the options are to restart execution, and to present that choice to the user in an interactive session. From the start, the focus in `wingman` has been on the REPL experience. It is primarily about recovering from errors in the REPL, and only then making that same functionality available in code.
+The method of binding dynamic variables for error handling is roughly equivalent to what `wingman` does, but where the plain dynamic-variables approach fails is introspection, or discovery. There is no way for code or tools to find out what the options are to restart execution.
+
+From the start, the focus in `wingman` has been on the REPL experience. It is primarily about recovering from errors in the REPL, prompting the user _interactively_ how to recover from errors, but that same functionality is then also available in code. Everything the REPL support does (listing restarts, prompting the user, etc.) is implemented on top of a base that is available for you to use to build cool things.
 
 ## What about Exceptions?
 
