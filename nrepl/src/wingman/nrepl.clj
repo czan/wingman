@@ -125,6 +125,13 @@
         :when (-> v meta :ns (= namespace))]
     namespace))
 
+(defn- prompt-for-legal-namespace-name [namespaces]
+  (let [result (read-string (prompt-user "Provide a namespace name:"
+                                         :options
+                                         (map (comp str ns-name) namespaces)))]
+    (require result)
+    result))
+
 (defn make-restarts [run retry-msg]
   (fn [ex]
     (concat
@@ -143,19 +150,13 @@
         (if-let [alias (namespace var)]
           [(make-restart :refer
                          (str "Provide a namespace to refer as " (str alias) " and retry the evaluation.")
-                         #(list (read-string (prompt-user "Provide a namespace name: "
-                                                          :options
-                                                          (map (comp str ns-name)
-                                                               (namespaces-with-var (symbol (name var)))))))
+                         #(list (prompt-for-legal-namespace-name (namespaces-with-var (symbol (name var)))))
                          (fn [ns]
                            (require [ns :as (symbol alias)])
                            (run)))]
           [(make-restart :refer
                          (str "Provide a namespace to refer " (str var) " from and retry the evaluation.")
-                         #(list (read-string (prompt-user "Provide a namespace name: "
-                                                          :options
-                                                          (map (comp str ns-name)
-                                                               (namespaces-with-var var)))))
+                         #(list (prompt-for-legal-namespace-name (namespaces-with-var var)))
                          (fn [ns]
                            (require [ns :refer [var]])
                            (run)))])))
