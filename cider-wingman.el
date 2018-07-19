@@ -55,9 +55,8 @@
     (cond
      ((equal type "restart/prompt")
       (nrepl-dbind-response response (error restarts causes)
-        (when restarts
-          (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
-          (cider-wingman-prompt-user id error causes restarts))))
+        (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
+        (cider-wingman-prompt-user id error causes restarts)))
      ((equal type "restart/ask")
       (nrepl-dbind-response response (prompt options)
         (puthash id (lambda (&rest ignored)) nrepl-pending-requests)
