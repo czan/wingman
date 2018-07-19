@@ -70,20 +70,20 @@
                     (ignore-errors (string-to-number (this-command-keys))))))
     (when (<= 1 choice (length cider-wingman-restarts))
       (cider-wingman-send-restart-choice cider-wingman-restart-request-id
-                               (1- choice)
-                               (cider-current-connection)))))
+                                         (1- choice)
+                                         (cider-current-connection)))))
 
 (defun cider-wingman-choose-unhandled ()
   (interactive)
   (cider-wingman-send-restart-choice cider-wingman-restart-request-id
-                           "unhandled"
-                           (cider-current-connection)))
+                                     "unhandled"
+                                     (cider-current-connection)))
 
 (defun cider-wingman-choose-abort ()
   (interactive)
   (cider-wingman-send-restart-choice cider-wingman-restart-request-id
-                           "abort"
-                           (cider-current-connection)))
+                                     "abort"
+                                     (cider-current-connection)))
 
 (define-key cider-wingman-restart-prompt-mode-map (kbd "1") #'cider-wingman-choose-restart)
 (define-key cider-wingman-restart-prompt-mode-map (kbd "2") #'cider-wingman-choose-restart)
@@ -99,10 +99,10 @@
 
 (defun cider-wingman-send-restart-choice (id restart connection)
   (cider-wingman-nrepl-send-response-to id
-                               `("op" "restart/choose"
-                                 "restart" ,restart
-                                 "id" ,id)
-                               connection)
+                                        `("op" "restart/choose"
+                                          "restart" ,restart
+                                          "id" ,id)
+                                        connection)
   (cider-popup-buffer-quit :kill))
 
 (defun cider-wingman-insert-bounds (&rest args)
@@ -186,17 +186,17 @@
 
 (defun cider-wingman-answer (id answer connection)
   (cider-wingman-nrepl-send-response-to id
-                               `("op" "restart/answer"
-                                 "input" ,answer
-                                 "id" ,id)
-                               connection))
+                                        `("op" "restart/answer"
+                                          "input" ,answer
+                                          "id" ,id)
+                                        connection))
 
 (defun cider-wingman-cancel (id connection)
   (cider-wingman-nrepl-send-response-to id
-                               `("op" "restart/answer"
-                                 "error" "cancel"
-                                 "id" ,id)
-                               connection))
+                                        `("op" "restart/answer"
+                                          "error" "cancel"
+                                          "id" ,id)
+                                        connection))
 
 (defun cider-wingman-read-form (prompt &optional value)
   (cider-read-from-minibuffer prompt value))
