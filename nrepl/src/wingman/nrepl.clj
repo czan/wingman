@@ -119,6 +119,15 @@
                   (read-string (.substring message (count %))))
                non-dynamic-var-messages))))
 
+(def already-refers-to-messages [#"([^ ]+) already refers to: #'[^ ]+ in namespace: ([^ ]+)"])
+(defn extract-already-refers-to-var-and-namespace [ex]
+  (and (instance? IllegalStateException ex)
+       (let [message (.getMessage ex)]
+         (some #(when-let [[_ var ns] (re-find % message)]
+                  [(read-string var)
+                   (read-string ns)])
+               already-refers-to-messages))))
+
 (defn namespaces-with-var [sym]
   (for [namespace (all-ns)
         :let [v (ns-resolve namespace sym)]
@@ -183,6 +192,12 @@
                       (str "Create the " (pr-str ns) " namespace and retry the evaluation.")
                       (constantly nil)
                       #(do (create-ns ns)
+                           (run)))])
+     (when-let [[var ns] (extract-already-refers-to-var-and-namespace ex)]
+       [(make-restart :use-new
+                      (str "Use the new var, unmapping the old, and retry")
+                      (constantly nil)
+                      #(do (ns-unmap ns var)
                            (run)))])
      [(make-restart :retry
                     retry-msg
