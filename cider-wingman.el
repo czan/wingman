@@ -221,7 +221,7 @@
         (let ((handler (alist-get (intern-soft type)
                                   cider-wingman-prompt-handlers
                                   #'cider-wingman-read-fallback)))
-          (cider-wingman-answer id (apply handler prompt args) connection)))
+          (cider-wingman-answer id (apply handler (concat prompt " ") args) connection)))
     (quit
      (cider-wingman-cancel id connection))))
 
