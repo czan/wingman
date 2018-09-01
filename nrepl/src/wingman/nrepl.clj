@@ -85,48 +85,39 @@
        (finally
          (swap! awaiting-prompts dissoc id))))))
 
-(def unbound-var-messages ["Unable to resolve symbol: "
-                           "Unable to resolve var: "
-                           "No such var: "])
-(defn extract-unbound-var-name [ex]
-  (and (instance? clojure.lang.Compiler$CompilerException ex)
-       (let [message (.getMessage (.getCause ex))]
-         (some #(when (.startsWith message %)
-                  (read-string (.substring message (count %))))
-               unbound-var-messages))))
+(defn exception-message-extractor [groups regular-expressions]
+  (fn [ex]
+    (when ex
+      (or (when-let [message (.getMessage ex)]
+            (some #(let [matcher (.matcher % message)]
+                     (when (.matches matcher)
+                       (reduce (fn [values group]
+                                 (assoc values group (read-string (.group matcher (name group)))))
+                               {} groups)))
+                  regular-expressions))
+          (recur (.getCause ex))))))
 
-(def missing-class-messages ["Unable to resolve classname: "])
-(defn extract-missing-class-name [ex]
-  (and (instance? clojure.lang.Compiler$CompilerException ex)
-       (let [message (.getMessage (.getCause ex))]
-         (some #(when (.startsWith message %)
-                  (read-string (.substring message (count %))))
-               missing-class-messages))))
+(defmacro defextractor
+  {:style/indent [2]}
+  [name groups & regular-expressions]
+  `(def ~name (exception-message-extractor ~groups ~(vec regular-expressions))))
 
-(def unknown-ns-messages ["No such namespace: "])
-(defn extract-ns-name [ex]
-  (and (instance? clojure.lang.Compiler$CompilerException ex)
-       (let [message (.getMessage (.getCause ex))]
-         (some #(when (.startsWith message %)
-                  (read-string (.substring message (count %))))
-               unknown-ns-messages))))
+(defextractor extract-unbound-var-name [:var]
+  #"Unable to resolve symbol: (?<var>.*)"
+  #"Unable to resolve var: (?<var>.*)"
+  #"No such var: (?<var>.*)")
 
-(def non-dynamic-var-messages ["Can't dynamically bind non-dynamic var: "])
-(defn extract-non-dynamic-var-name [ex]
-  (and (instance? IllegalStateException ex)
-       (let [message (.getMessage ex)]
-         (some #(when (.startsWith message %)
-                  (read-string (.substring message (count %))))
-               non-dynamic-var-messages))))
+(defextractor extract-missing-class [:class]
+  #"Unable to resolve classname: (?<class>.*)")
 
-(def already-refers-to-messages [#"([^ ]+) already refers to: #'[^ ]+ in namespace: ([^ ]+)"])
-(defn extract-already-refers-to-var-and-namespace [ex]
-  (and (instance? IllegalStateException ex)
-       (let [message (.getMessage ex)]
-         (some #(when-let [[_ var ns] (re-find % message)]
-                  [(read-string var)
-                   (read-string ns)])
-               already-refers-to-messages))))
+(defextractor extract-ns-name [:ns]
+  #"No such namespace: (?<ns>.*)")
+
+(defextractor extract-non-dynamic-var-name [:var]
+  #"Can't dynamically bind non-dynamic var: (?<var>.*)")
+
+(defextractor extract-already-refers-to-var-and-namespace [:var :ns]
+  #"(?<var>[^ ]+) already refers to: #'[^ ]+ in namespace: (?<ns>[^ ]+)")
 
 (defn namespaces-with-var [sym]
   (for [namespace (all-ns)
@@ -144,7 +135,7 @@
 (defn make-restarts [run retry-msg]
   (fn [ex]
     (concat
-     (when-let [var (extract-unbound-var-name ex)]
+     (when-let [{var :var} (extract-unbound-var-name ex)]
        (concat
         [(make-restart :define
                        (str "Provide a value for " (pr-str var) " and retry the evaluation.")
@@ -169,14 +160,14 @@
                          (fn [ns]
                            (require [ns :refer [var]])
                            (run)))])))
-     (when-let [class (extract-missing-class-name ex)]
+     (when-let [{class :class} (extract-missing-class ex)]
        [(make-restart :import
                       "Provide a package to import the class from and retry the evaluation."
                       #(w/read-form ex)
                       (fn [package]
                         (.importClass *ns* (clojure.lang.RT/classForName (str (name package) "." (name class))))
                         (run)))])
-     (when-let [ns (extract-ns-name ex)]
+     (when-let [{ns :ns} (extract-ns-name ex)]
        [(make-restart :require
                       (str "Require the " (pr-str ns) " namespace and retry the evaluation.")
                       (constantly nil)
@@ -193,7 +184,7 @@
                       (constantly nil)
                       #(do (create-ns ns)
                            (run)))])
-     (when-let [[var ns] (extract-already-refers-to-var-and-namespace ex)]
+     (when-let [{:keys [var ns]} (extract-already-refers-to-var-and-namespace ex)]
        [(make-restart :use-new
                       (str "Use the new var, unmapping the old, and retry")
                       (constantly nil)
@@ -330,7 +321,7 @@
   (try
     (push-thread-bindings bindings)
     (catch IllegalStateException ex
-      (if-let [var (extract-non-dynamic-var-name ex)]
+      (if-let [{var :var} (extract-non-dynamic-var-name ex)]
         (with-restarts [(:make-dynamic []
                           :describe (str "Make " (pr-str var) " dynamic and retry the evaluation.")
                           (.setDynamic (resolve var) true)
